@@ -330,12 +330,30 @@ impl Canvas {
         }
     }
 
+    pub fn copy_canvas(&mut self, src: &Canvas, x: i32, y: i32) {
+        let sx0 = (-x).max(0) as usize;
+        let sy0 = (-y).max(0) as usize;
+        let dx0 = x.max(0) as usize;
+        let dy0 = y.max(0) as usize;
+        if dx0 >= self.w || dy0 >= self.h || sx0 >= src.w || sy0 >= src.h {
+            return;
+        }
+        let cw = (src.w - sx0).min(self.w - dx0);
+        let ch = (src.h - sy0).min(self.h - dy0);
+        let row_bytes = cw * 4;
+        for row in 0..ch {
+            let soff = ((sy0 + row) * src.w + sx0) * 4;
+            let doff = ((dy0 + row) * self.w + dx0) * 4;
+            self.data[doff..doff + row_bytes].copy_from_slice(&src.data[soff..soff + row_bytes]);
+        }
+    }
+
     pub fn shift(self, dx: i32, dy: i32, bg: Rgba) -> Self {
         if dx == 0 && dy == 0 {
             return self;
         }
         let mut out = Canvas::new(self.w, self.h, bg);
-        out.paste_canvas(&self, dx, dy);
+        out.copy_canvas(&self, dx, dy);
         out
     }
 }
