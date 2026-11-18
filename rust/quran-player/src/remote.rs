@@ -71,16 +71,16 @@ fn map_key(code: &str) -> Option<&'static str> {
 
 fn key_gate(g: &mut GateState, k: &'static str, hold: bool) -> bool {
     let now = unix_now();
+    let gap = if matches!(k, "volup" | "voldown") { 0.12 } else { 0.25 };
     if !hold {
-        if g.key == Some(k) && now - g.last < 0.25 {
-            g.last = now;
+        if g.key == Some(k) && now - g.last < gap {
             return false;
         }
         g.key = Some(k);
         g.down = now;
         g.last = now;
         true
-    } else if g.key != Some(k) || now - g.down < 0.6 || now - g.last < 0.25 {
+    } else if g.key != Some(k) || now - g.down < 0.5 || now - g.last < gap {
         false
     } else {
         g.last = now;

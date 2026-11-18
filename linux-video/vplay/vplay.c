@@ -42,6 +42,7 @@ static VPkt *vq, *vqt; static int vqn; /* video access units waiting for their t
 static volatile int quit, paused, seekgen, has_audio;
 static volatile int64_t aclock = -1;  /* ms of audio being heard now (-1 = not started) */
 static volatile float gain = 1.0f;
+static float chan_boost = 1.0f;
 static snd_pcm_t *pcm;
 static int64_t sys_base;              /* no-audio files: clock from the system clock */
 static volatile int64_t ahold_until;  /* main loop: no new check until the inserted silence has played */
@@ -60,7 +61,8 @@ static void onsig(int s) { quit = 1; pthread_cond_broadcast(&c); }
 static void set_volume(int v)
 {
     if (v < 0) v = 0; if (v > 99) v = 99;
-    gain = v == 0 ? 0.0f : powf(10.0f, (v - 99) * 0.5f / 20.0f);
+    float norm = v / 99.0f;
+    gain = norm * norm;
 }
 
 static int64_t clock_now(void)
@@ -124,9 +126,12 @@ static void *audio_thread(void *arg)
         }
         AChunk *ch = aq;
         int n = ch->n - ch->off; if (n > 2048) n = 2048;
-        float g = gain;
+        float g = gain * chan_boost;
         if (ch->raw) memcpy(tmp, ch->s + ch->off * 2, n * 4);
-        else for (int i = 0; i < n * 2; i++) tmp[i] = (int16_t)(ch->s[ch->off * 2 + i] * g);
+        else for (int i = 0; i < n * 2; i++) {
+            int32_t sv = (int32_t)(ch->s[ch->off * 2 + i] * g);
+            tmp[i] = sv > 32767 ? 32767 : (sv < -32768 ? -32768 : (int16_t)sv);
+        }
         pthread_mutex_unlock(&m);
         snd_pcm_sframes_t r = snd_pcm_writei(pcm, tmp, n);
         if (r < 0) r = snd_pcm_recover(pcm, r, 1);
@@ -149,7 +154,7 @@ static void *audio_thread(void *arg)
 static int audio_open(void)
 {
     if (snd_pcm_open(&pcm, getenv("VPLAY_ADEV") ? getenv("VPLAY_ADEV") : AUDIO_DEV, SND_PCM_STREAM_PLAYBACK, 0) < 0) return -1;
-    if (snd_pcm_set_params(pcm, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, RATE, 1, 300000) < 0) return -1;
+    if (snd_pcm_set_params(pcm, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, RATE, 1, 150000) < 0) return -1;
     return 0;
 }
 
@@ -374,6 +379,7 @@ int main(int argc, char **argv)
         if (ac && (adec = avcodec_alloc_context3(ac)) && avcodec_parameters_to_context(adec, apar) >= 0 &&
             avcodec_open2(adec, ac, NULL) >= 0 && audio_open() == 0) {
             int64_t lay = adec->channel_layout ? adec->channel_layout : av_get_default_channel_layout(adec->channels);
+            if (adec->channels > 2) chan_boost = 1.8f;
             swr = swr_alloc_set_opts(NULL, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_S16, RATE, lay, adec->sample_fmt, adec->sample_rate, 0, NULL);
             if (swr && swr_init(swr) >= 0) has_audio = 1;
         }
