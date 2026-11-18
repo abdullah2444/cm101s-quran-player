@@ -1,5 +1,6 @@
-use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
+use ab_glyph::{Font, FontRef, GlyphId, PxScale, ScaleFont};
 use std::fs::File;
+use unicode_bidi::BidiInfo;
 
 pub const FONT_REG: &str = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 pub const FONT_BOLD: &str = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
@@ -31,6 +32,52 @@ impl Fonts {
     pub fn get(&self, bold: bool) -> FontRef<'_> {
         FontRef::try_from_slice(if bold { &self.bold } else { &self.reg }).unwrap()
     }
+
+    pub fn face(&self, bold: bool) -> Option<rustybuzz::Face<'_>> {
+        rustybuzz::Face::from_slice(if bold { &self.bold } else { &self.reg }, 0)
+    }
+}
+
+fn shape_line(fonts: &Fonts, text: &str, size: f32, bold: bool) -> (f32, f32, f32, Vec<(GlyphId, f32, f32)>) {
+    let raw_font = fonts.get(bold);
+    let font = raw_font.as_scaled(PxScale::from(size));
+    let ascent = font.ascent();
+    let height = ascent - font.descent();
+    if text.is_empty() {
+        return (0.0, ascent, height, Vec::new());
+    }
+    let Some(face) = fonts.face(bold) else {
+        return (0.0, ascent, height, Vec::new());
+    };
+    let sf = size / raw_font.height_unscaled();
+    let bidi = BidiInfo::new(text, None);
+    let mut caret_x = 0.0f32;
+    let mut glyphs = Vec::new();
+    for para in &bidi.paragraphs {
+        let (levels, runs) = bidi.visual_runs(para, para.range.clone());
+        for run in runs {
+            let slice = &text[run.clone()];
+            if slice.is_empty() {
+                continue;
+            }
+            let rtl = levels[run.start].is_rtl();
+            let mut buf = rustybuzz::UnicodeBuffer::new();
+            buf.push_str(slice);
+            buf.set_direction(if rtl {
+                rustybuzz::Direction::RightToLeft
+            } else {
+                rustybuzz::Direction::LeftToRight
+            });
+            let shaped = rustybuzz::shape(&face, &[], buf);
+            for (info, pos) in shaped.glyph_infos().iter().zip(shaped.glyph_positions().iter()) {
+                let gx = caret_x + (pos.x_offset as f32) * sf;
+                let gy = -(pos.y_offset as f32) * sf;
+                glyphs.push((GlyphId(info.glyph_id as u16), gx, gy));
+                caret_x += (pos.x_advance as f32) * sf;
+            }
+        }
+    }
+    (caret_x, ascent, height, glyphs)
 }
 
 pub struct Canvas {
@@ -234,41 +281,25 @@ impl Canvas {
     }
 
     pub fn measure_text(&self, fonts: &Fonts, text: &str, size: f32, bold: bool) -> (i32, i32) {
-        let font = fonts.get(bold).into_scaled(PxScale::from(size));
-        let mut x = 0.0f32;
-        let mut prev = None;
-        for ch in text.chars() {
-            let gid = font.glyph_id(ch);
-            if let Some(p) = prev {
-                x += font.kern(p, gid);
-            }
-            x += font.h_advance(gid);
-            prev = Some(gid);
-        }
-        (x.ceil() as i32, (font.ascent() - font.descent()).ceil() as i32)
+        let (w, _, h, _) = shape_line(fonts, text, size, bold);
+        (w.ceil() as i32, h.ceil() as i32)
     }
 
     pub fn draw_text(&mut self, fonts: &Fonts, x: i32, y: i32, text: &str, size: f32, bold: bool, c: Rgba) {
         let raw_font = fonts.get(bold);
-        let font = raw_font.as_scaled(PxScale::from(size));
-        let mut caret_x = x as f32;
-        let baseline = y as f32 + font.ascent();
-        let mut prev = None;
-        for ch in text.chars() {
-            let gid = font.glyph_id(ch);
-            if let Some(p) = prev {
-                caret_x += font.kern(p, gid);
-            }
-            let glyph = gid.with_scale_and_position(PxScale::from(size), ab_glyph::point(caret_x, baseline));
+        let (_, ascent, _, glyphs) = shape_line(fonts, text, size, bold);
+        let base_x = x as f32;
+        let baseline = y as f32 + ascent;
+        let scale = PxScale::from(size);
+        for (gid, gx, gy) in glyphs {
+            let glyph = gid.with_scale_and_position(scale, ab_glyph::point(base_x + gx, baseline + gy));
             if let Some(outlined) = raw_font.outline_glyph(glyph) {
                 let bb = outlined.px_bounds();
-                outlined.draw(|gx, gy, cov| {
+                outlined.draw(|px, py, cov| {
                     let a = (cov.clamp(0.0, 1.0) * 255.0).round() as u8;
-                    self.blend_px(bb.min.x as i32 + gx as i32, bb.min.y as i32 + gy as i32, c, a);
+                    self.blend_px(bb.min.x as i32 + px as i32, bb.min.y as i32 + py as i32, c, a);
                 });
             }
-            caret_x += font.h_advance(gid);
-            prev = Some(gid);
         }
     }
 
