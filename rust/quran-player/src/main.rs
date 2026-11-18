@@ -162,6 +162,24 @@ pub fn pcm_is_closed() -> bool {
     }
 }
 
+pub fn term_and_wait(child: &mut Child, timeout_ms: u64) {
+    let pid = child.id() as libc::pid_t;
+    if pid > 0 {
+        unsafe {
+            libc::kill(pid, libc::SIGTERM);
+        }
+    }
+    let steps = (timeout_ms / 10).max(1);
+    for _ in 0..steps {
+        if matches!(child.try_wait(), Ok(Some(_))) {
+            return;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
 impl Shared {
     pub fn load() -> Arc<Self> {
         let base = std::env::var("QURAN_BASE").unwrap_or_else(|_| BASE.to_string());
@@ -234,8 +252,7 @@ impl Shared {
         let mut guard = self.silent.lock().unwrap();
         if let Some(mut child) = guard.take() {
             drop(guard);
-            let _ = child.kill();
-            let _ = child.wait();
+            term_and_wait(&mut child, 2000);
             for _ in 0..20 {
                 if pcm_is_closed() {
                     break;

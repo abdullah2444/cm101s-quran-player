@@ -94,8 +94,7 @@ pub fn airplay_stop_locked(shared: &Shared) {
         ap.child.take()
     };
     if let Some(mut p) = child {
-        let _ = p.kill();
-        let _ = p.wait();
+        crate::term_and_wait(&mut p, 4000);
     }
     airplay_publish(shared);
 }
