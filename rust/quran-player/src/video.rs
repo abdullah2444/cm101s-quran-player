@@ -323,16 +323,18 @@ pub fn video_stop_locked(shared: &Shared, remember: bool) {
         Some(ch)
     };
     if let Some(mut ch) = child {
-        for _ in 0..50 {
+        for _ in 0..250 {
+            shared.ensure_silence();
             if matches!(ch.try_wait(), Ok(Some(_))) {
                 break;
             }
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(20));
         }
         if matches!(ch.try_wait(), Ok(None)) {
             let _ = ch.kill();
             let _ = ch.wait();
         }
+        shared.ensure_silence();
     }
     video_publish(shared);
 }

@@ -245,6 +245,53 @@ impl Shared {
         }
     }
 
+    pub fn ensure_silence(&self) {
+        let st_guard = self.st.lock().unwrap();
+        let playing = st_guard.state == "playing";
+        let ap_claimed = self.airplay.lock().unwrap().audio_claimed;
+        let vid_busy = {
+            let v = self.video.lock().unwrap();
+            v.busy || v.child.is_some()
+        };
+        if playing || ap_claimed || vid_busy {
+            return;
+        }
+        let alive = {
+            let mut guard = self.silent.lock().unwrap();
+            if let Some(ch) = guard.as_mut() {
+                matches!(ch.try_wait(), Ok(None))
+            } else {
+                false
+            }
+        };
+        if alive || !pcm_is_closed() {
+            return;
+        }
+        if let Ok(child) = Command::new("aplay")
+            .args([
+                "-q",
+                "-D",
+                "plughw:0,0",
+                "-f",
+                "S16_LE",
+                "-r",
+                "48000",
+                "-c",
+                "2",
+                "-t",
+                "raw",
+                "/dev/zero",
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            *self.silent.lock().unwrap() = Some(child);
+        }
+        drop(st_guard);
+    }
+
     pub fn mpg_send(&self, cmd: &str) {
         if cmd.starts_with("LOAD") || cmd.starts_with("PAUSE") || cmd.starts_with("JUMP") {
             self.silence_off();
@@ -542,56 +589,11 @@ fn spawn_mpg(shared: Arc<Shared>) {
 
 fn spawn_silence_keeper(shared: Arc<Shared>) {
     thread::spawn(move || loop {
-        thread::sleep(Duration::from_millis(300));
+        thread::sleep(Duration::from_millis(100));
         let Ok(_vg) = shared.vlock.try_lock() else {
             continue;
         };
-        let st_guard = shared.st.lock().unwrap();
-        let playing = st_guard.state == "playing";
-        let ap_claimed = shared.airplay.lock().unwrap().audio_claimed;
-        let vid_busy = {
-            let v = shared.video.lock().unwrap();
-            v.busy || v.child.is_some()
-        };
-        if playing || ap_claimed || vid_busy {
-            continue;
-        }
-        let alive = {
-            let mut guard = shared.silent.lock().unwrap();
-            if let Some(ch) = guard.as_mut() {
-                matches!(ch.try_wait(), Ok(None))
-            } else {
-                false
-            }
-        };
-        if alive {
-            continue;
-        }
-        if pcm_is_closed() {
-            if let Ok(child) = Command::new("aplay")
-                .args([
-                    "-q",
-                    "-D",
-                    "plughw:0,0",
-                    "-f",
-                    "S16_LE",
-                    "-r",
-                    "48000",
-                    "-c",
-                    "2",
-                    "-t",
-                    "raw",
-                    "/dev/zero",
-                ])
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-            {
-                *shared.silent.lock().unwrap() = Some(child);
-            }
-        }
-        drop(st_guard);
+        shared.ensure_silence();
     });
 }
 
