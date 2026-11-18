@@ -436,7 +436,7 @@ pub fn video_start(shared: &Arc<Shared>, rel: &str, start_ms: Option<i64>) -> Re
                 v.err = msg;
             }
         }
-        let nxt = {
+        let rel_for_next = {
             let mut v = s2.video.lock().unwrap();
             if v.gen != gen {
                 return;
@@ -450,13 +450,9 @@ pub fn video_start(shared: &Arc<Shared>, rel: &str, start_ms: Option<i64>) -> Re
                 v.pos = v.dur;
             }
             video_remember_locked(&mut v);
-            drop(v);
-            if ended {
-                video_neighbour(&s2, &rel, 1)
-            } else {
-                None
-            }
+            if ended { Some(rel) } else { None }
         };
+        let nxt = rel_for_next.and_then(|rel| video_neighbour(&s2, &rel, 1));
         if let Some(next_rel) = nxt {
             toast(&video_title(&next_rel).chars().take(60).collect::<String>());
             let _ = video_start(&s2, &next_rel, Some(0));

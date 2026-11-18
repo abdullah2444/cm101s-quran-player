@@ -352,13 +352,19 @@ impl Shared {
     }
 
     pub fn quran_stop(&self) {
-        let mut st = self.st.lock().unwrap();
-        if st.state != "stopped" {
-            if st.state == "playing" {
-                st.pos_ms = st.clock_pos();
+        let need_stop = {
+            let mut st = self.st.lock().unwrap();
+            if st.state != "stopped" {
+                if st.state == "playing" {
+                    st.pos_ms = st.clock_pos();
+                }
+                st.state = "stopped".to_string();
+                true
+            } else {
+                false
             }
-            st.state = "stopped".to_string();
-            drop(st);
+        };
+        if need_stop {
             self.mpg_send("STOP");
         }
         self.save();
