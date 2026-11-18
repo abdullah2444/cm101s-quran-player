@@ -151,7 +151,8 @@ pub fn cpu_freq_str() -> String {
     let Some(tok) = after[eq + 1..].split_whitespace().next() else {
         return String::new();
     };
-    if let Ok(khz) = tok.parse::<f64>() {
+    let digits: String = tok.chars().take_while(|c| c.is_ascii_digit()).collect();
+    if let Ok(khz) = digits.parse::<f64>() {
         format!("{:.1} GHz", khz / 1e6)
     } else {
         String::new()
