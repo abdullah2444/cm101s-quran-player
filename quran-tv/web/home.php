@@ -1,5 +1,5 @@
 <?php require_once 'require_login.php';
-date_default_timezone_set('Asia/Shanghai');
+date_default_timezone_set('UTC');
 $serverTime = time();
 $lanip = $_SERVER["HTTP_HOST"];
 $host = preg_replace('/:\d+$/', '', $lanip);

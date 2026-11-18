@@ -5,7 +5,7 @@
 import json, os, sqlite3, sys, urllib.request
 from PIL import Image, ImageChops
 
-SRC = r'Z:\CM101s-2\quran'
+SRC = os.environ.get('QURAN_SRC', './quran-raw')
 OUT = os.path.join(SRC, 'box')
 PH = 940
 PW = round(PH * 1024 / 1656)

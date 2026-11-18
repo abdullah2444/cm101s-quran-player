@@ -1,6 +1,6 @@
 import json, os, sqlite3
 from PIL import Image, ImageChops
-SRC = r'Z:\CM101s-2\quran'
+SRC = os.environ.get('QURAN_SRC', './quran-raw')
 OUT = os.path.join(SRC, 'box1260')
 os.makedirs(os.path.join(OUT, 'pages'), exist_ok=True)
 for p in range(1, 605):
