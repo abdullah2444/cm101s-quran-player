@@ -1,0 +1,1855 @@
+--- /root/hi_drv_video.h.orig	2026-11-07 19:34:19.638199212 +0800
++++ msp/drv/include/hi_drv_video.h	2026-11-07 19:34:19.656199421 +0800
+@@ -355,7 +355,7 @@
+     HI_DRV_BUF_ADDR_MAX
+ }HI_DRV_BUF_ADDR_E;
+ 
+-#define DEF_HI_DRV_FRAME_INFO_SIZE 86
++#define DEF_HI_DRV_FRAME_INFO_SIZE 94  /* box kernel (UNF 3.3.4): frame is 32 bytes larger */
+ 
+ /* define of how to adjust the TB match */
+ typedef enum hiDRV_VIDEO_TB_ADJUST_E
+--- /root/hi_drv_vpss.h.orig	2026-11-07 19:34:19.646199305 +0800
++++ msp/drv/include/hi_drv_vpss.h	2026-11-07 19:34:19.751200521 +0800
+@@ -1,497 +1,498 @@
+-#ifndef __HI_DRV_VPSS_H__
+-#define __HI_DRV_VPSS_H__
+-
+-#include "hi_type.h"
+-#include "hi_drv_video.h"
+-#include "hi_drv_disp.h"
+-
+-/** Handle Definition.*/
+-/**<CNcomment: ??¡À¨²?¡§¨°? \n
+-      ??¡À¨²¨º¦Ì?¨º¨¦?¨º?¨°?????¨ºy¡ê?¨®?¨®¨²¡À¨º¨º?chano¨ªport¨º¡À¨ºy?¦Ì¦Ì??¡§¨°?¨®D?¨´2?¨ª?¡ê?¦Ì???¨°?-1¡Á¡Â?a?TD¡ì??¡À¨²?¡ê\n
+-      1. VPSS¨º¦Ì¨¤y??¡À¨²¡ê????¦Ì?a¨º¦Ì¨¤y¦Ì??¡Â¨°yo?(ID) \n
+-      2. ???¨²??¡À¨²¡ê????¦Ì¨°a¡À¨ª¨º?¨¢????¨²¨¨Y: ?¨´¨º?¨ª¡§¦Ì¨¤?¡Â¨°y¡ê?¨°??¡ã???¨²¡À?¨¦¨ª¦Ì??¡Â¨°y?¡ê\n
+-              = ¨º¦Ì¨¤y?¡Â¨°y*256 + ???¨²?¡Â¨°y */
+-
+-typedef HI_S32 VPSS_HANDLE;
+-#define VPSS_INVALID_HANDLE (-1)
+-
+-#define PORTHANDLE_TO_VPSSID(hPort)    (hPort >> 8)
+-#define PORTHANDLE_TO_PORTID(hPort)    (hPort & 0xff)
+-
+-/*************************** Macro definition ****************************/
+-#define DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_NUMBER 40
+-#define DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_EXT_NUMBER 12
+-#define DEF_HI_DRV_VPSS_PORT_MAX_NUMBER 3
+-
+-/** Last Frame Flag,indicate it is a valid frame.*/
+-/**<CNcomment: ?¡ã??¡ä?¨¨?¦Ì?¡Á?o¨®¨°???¡À¨º??¡ê?????¨®DD¡ì*/
+-#define DEF_HI_DRV_VPSS_LAST_FRAME_FLAG 0xffee
+-
+-/** Last Frame Flag,indicate it is an invalid frame.*/
+-/**<CNcomment: ?¡ã??¡ä?¨¨?¦Ì?¡Á?o¨®¨°???¡À¨º??¡ê??????TD¡ì*/
+-#define DEF_HI_DRV_VPSS_LAST_ERROR_FLAG 0xff00
+-
+-#define DEF_HI_DRV_VPSS_FAKE_FLAG 0xff11 //resolution change
+-/*************************** Structure Definition ****************************/
+-
+-/**defines the vertical flip type.*/
+-/**CNcomment:?¡§¨°?¨º?¡¤?¡ä¨°?a¡ä1?¡À¡¤-¡Áa1|?¨¹*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_HFLIP_DISABLE = 0,
+-    HI_DRV_VPSS_HFLIP_ENABLE,
+-    HI_DRV_VPSS_HFLIP_BUTT
+-}HI_DRV_VPSS_HFLIP_E;
+-
+-/**defines the horizon flip type.*/
+-/**CNcomment:?¡§¨°?¨º?¡¤?¡ä¨°?a????¡¤-¡Áa1|?¨¹*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_VFLIP_DISABLE = 0,
+-    HI_DRV_VPSS_VFLIP_ENABLE,
+-    HI_DRV_VPSS_VFLIP_BUTT
+-}HI_DRV_VPSS_VFLIP_E;
+-
+-
+-/**defines the ROTATION type.*/
+-/**CNcomment:?¡§¨°?¨º¨®?¦ÌDy¡Áa???¨¨*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_ROTATION_DISABLE = 0,
+-    HI_DRV_VPSS_ROTATION_90,
+-    HI_DRV_VPSS_ROTATION_180,
+-    HI_DRV_VPSS_ROTATION_270,
+-    HI_DRV_VPSS_ROTATION_BUTT
+-}HI_DRV_VPSS_ROTATION_E;
+-
+-/*Delete*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_STEREO_DISABLE = 0,
+-    HI_DRV_VPSS_STEREO_SIDE_BY_SIDE,
+-    HI_DRV_VPSS_STEREO_TOP_AND_BOTTOM,
+-    HI_DRV_VPSS_STEREO_TIME_INTERLACED,
+-    HI_DRV_VPSS_STEREO_BUTT
+-}HI_DRV_VPSS_STEREO_E;
+-
+-
+-/**defines the Deinterlace mode.
+-    3FIELD¡ê?4FIELD¡ê?5FIELD is supported?¡ê
+-    Default is HI_DRV_VPSS_DIE_5FIELD*/
+-/**CNcomment:?¡§¨°?¨¨£¤??DD??¡¤¡§?¡ê¨º?
+-    ???¡ì3?¨¨y?¡é???¡é??3??¡ê¨º?
+-    ??¨¨??????a??3??¡ê¨º?*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_DIE_DISABLE = 0,
+-    HI_DRV_VPSS_DIE_AUTO,
+-    HI_DRV_VPSS_DIE_2FIELD,
+-    HI_DRV_VPSS_DIE_3FIELD,
+-    HI_DRV_VPSS_DIE_4FIELD,
+-    HI_DRV_VPSS_DIE_5FIELD,
+-    HI_DRV_VPSS_DIE_6FIELD,
+-    HI_DRV_VPSS_DIE_7FIELD,
+-    HI_DRV_VPSS_DIE_BUTT
+-}HI_DRV_VPSS_DIE_MODE_E;
+-
+-/*Delete*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_ACC_DISABLE = 0,
+-    HI_DRV_VPSS_ACC_LOW,
+-    HI_DRV_VPSS_ACC_MIDDLE,
+-    HI_DRV_VPSS_ACC_HIGH,
+-    HI_DRV_VPSS_ACC_BUTT
+-}HI_DRV_VPSS_ACC_E;
+-
+-/*Delete*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_ACM_DISABLE = 0,
+-    HI_DRV_VPSS_ACM_BLUE,
+-    HI_DRV_VPSS_ACM_GREEN,
+-    HI_DRV_VPSS_ACM_BG,
+-    HI_DRV_VPSS_ACM_SKIN,
+-    HI_DRV_VPSS_ACM_BUTT
+-}HI_DRV_VPSS_ACM_E;
+-
+-/*Delete*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_CC_DISABLE = 0,
+-    HI_DRV_VPSS_CC_ENABLE,
+-    HI_DRV_VPSS_CC_AUTO,
+-    HI_DRV_VPSS_CC_BUTT
+-}HI_DRV_VPSS_CC_E;
+-
+-/**defines the Sharpen type.*/
+-/**CNcomment:?¡§¨°?¨¨??¡¥?¡ê¨º?*/
+-/*D¨¨¨°a¨¨¡¤¨¨?*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_SHARPNESS_DISABLE = 0,
+-    HI_DRV_VPSS_SHARPNESS_ENABLE,
+-    HI_DRV_VPSS_SHARPNESS_AUTO,
+-    HI_DRV_VPSS_SHARPNESS_BUTT
+-}HI_DRV_VPSS_SHARPNESS_E;
+-
+-/**defines the Dnr type.*/
+-/**CNcomment:?¡§¨°?¨¨£¤?¨¦¨¨£¤??¨¢???¡¤¡§?¡ê¨º?*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_DNR_DISABLE = 0,
+-    HI_DRV_VPSS_DNR_ENABLE,
+-    HI_DRV_VPSS_DNR_AUTO,
+-    HI_DRV_VPSS_DNR_BUTT
+-}HI_DRV_VPSS_DNR_E;
+-
+-/*Delete ,will be HI_DRV_VPSS_DNR_E*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_DB_DISABLE = 0,
+-    HI_DRV_VPSS_DB_ENABLE,
+-    HI_DRV_VPSS_DB_AUTO,
+-    HI_DRV_VPSS_DB_BUTT
+-}HI_DRV_VPSS_DB_E;
+-/*Delete ,will be HI_DRV_VPSS_DNR_E*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_DR_DISABLE = 0,
+-    HI_DRV_VPSS_DR_ENABLE,
+-    HI_DRV_VPSS_DR_AUTO,
+-    HI_DRV_VPSS_DR_BUTT
+-}HI_DRV_VPSS_DR_E;
+-/*delete*/
+-/**defines the color space convert type.*/
+-/**CNcomment:?¡§¨°?¨¦?2¨º????¡Áa???¡ê¨º?*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_CSC_DISABLE = 0,
+-    HI_DRV_VPSS_CSC_ENABLE,
+-    HI_DRV_VPSS_CSC_AUTO,
+-    HI_DRV_VPSS_CSC_BUTT
+-}HI_DRV_VPSS_CSC_E;
+-
+-/**defines the fidelity type.*/
+-/**CNcomment:?¡§¨°?¡À¡ê??¡ä|¨¤¨ª?¡ê¨º?*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_FIDELITY_DISABLE = 0,
+-    HI_DRV_VPSS_FIDELITY_ENABLE,
+-    HI_DRV_VPSS_FIDELITY_AUTO,
+-    HI_DRV_VPSS_FIDELITY_BUTT
+-}HI_DRV_VPSS_FIDELITY_E;
+-
+-
+-typedef enum
+-{
+-    HI_DRV_VPSS_SCENE_MODE_NORMAL,
+-    HI_DRV_VPSS_SCENE_MODE_VP_PREVIEW,
+-    HI_DRV_VPSS_SCENE_MODE_VP_REMOTE,
+-    HI_DRV_VPSS_SCENE_MODE_BUTT,
+-}HI_DRV_VPSS_SCENEMODE_E;
+-
+-
+-typedef struct
+-{
+-    HI_DRV_VPSS_HFLIP_E  eHFlip;
+-    HI_DRV_VPSS_VFLIP_E  eVFlip;
+-    HI_DRV_VPSS_STEREO_E eStereo;
+-    HI_DRV_VPSS_ROTATION_E  eRotation;
+-    HI_DRV_VPSS_DIE_MODE_E eDEI;
+-    HI_DRV_VPSS_ACC_E eACC;
+-    HI_DRV_VPSS_ACM_E eACM;
+-    HI_DRV_VPSS_CC_E eCC;
+-    HI_DRV_VPSS_SHARPNESS_E eSharpness;
+-    HI_DRV_VPSS_DB_E eDB;
+-    HI_DRV_VPSS_DR_E eDR;
+-
+-    HI_BOOL bIFMD;
+-
+-    HI_RECT_S stInRect;
+-    HI_BOOL   bUseCropRect;
+-    HI_DRV_CROP_RECT_S stCropRect;
+-}HI_DRV_VPSS_PROCESS_S;
+-
+-typedef struct
+-{
+-    HI_DRV_VPSS_CSC_E eCSC;
+-    HI_DRV_VPSS_FIDELITY_E eFidelity;
+-}HI_DRV_VPSS_PORT_PROCESS_S;
+-
+-
+-/**defines the vpss instance attr.*/
+-/**CNcomment:?¡§¨°??e??DD?¨¬2a????*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_PRODETECT_PROGRESSIVE = 0,
+-    HI_DRV_VPSS_PRODETECT_INTERLACE,
+-    HI_DRV_VPSS_PRODETECT_AUTO,
+-    HI_DRV_VPSS_PRODETECT_OFF,
+-    HI_DRV_VPSS_PRODETECT_BUTT
+-}HI_DRV_VPSS_PRODETECT_E;
+-
+-/**defines the vpss IP attr.*/
+-/**CNcomment:?¡§¨°?VPSS¡ã¨®?¡§IP????*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_IPMODE_AUTO = 0,
+-    HI_DRV_VPSS_IPMODE_IP0,
+-    HI_DRV_VPSS_IPMODE_IP1,
+-    HI_DRV_VPSS_IPMODE_BUTT
+-}HI_DRV_VPSS_IPMODE_E;
+-
+-
+-
+-/**defines the vpss instance attr.*/
+-/**CNcomment:?¡§¨°?¨º¦Ì¨¤y????*/
+-typedef struct
+-{
+-    HI_S32  s32Priority;  /**defines the instance priority.
+-                                default 16
+-                                0 is valid ,1 ~ 31 is more and more prior
+-                                */
+-                          /**CNcomment:0?TD¡ì¡ê?1 ~ 31?a?y3¡ê¨®??¨¨??¡ê?¨ºy?¦Ì??¡ä¨®¨®??¨¨??????*/
+-
+-    HI_BOOL bAlwaysFlushSrc;    /**whether process the newest frame.
+-                                        */
+-                                /**CNcomment:¨º?¡¤???¡ä|¨¤¨ª¡Á?D?¨°???¡ê??¨²¦Ì¨ª?¨®3¨´?¡ê¨º??????aTRUE
+-                                            ?a?¨´??¡ä????¨¢?¨¢??Src buf¡ê???¨¢?¡Á?D?¨°???¡ä|¨¤¨ª */
+-
+-    HI_DRV_VPSS_PRODETECT_E enProgInfo;
+-
+-    HI_BOOL bProgRevise;
+-    HI_DRV_VPSS_SCENEMODE_E enSceneMode;
+-    HI_DRV_COLOR_SPACE_E enSrcCS;
+-
+-    HI_DRV_VPSS_PROCESS_S stProcCtrl;
+-
+-	HI_BOOL bSecure;
+-
+-}HI_DRV_VPSS_CFG_S;
+-
+-
+-/**defines the out buffer mode.*/
+-/**CNcomment:?¡§¨°?¨º?3???¡ä?1¨¹¨¤¨ª?¡ê¨º?*/
+-typedef enum hiDRV_VPSS_BUFFER_TYPE_E{
+-    HI_DRV_VPSS_BUF_VPSS_ALLOC_MANAGE = 0,
+-    HI_DRV_VPSS_BUF_USER_ALLOC_MANAGE,
+-    HI_DRV_VPSS_BUF_USER_ALLOC_VPSS_MANAGE,
+-    HI_DRV_VPSS_BUF_TYPE_BUTT
+-}HI_DRV_VPSS_BUFFER_TYPE_E;
+-
+-typedef struct hiDRV_VPSS_BUFFER_CFG_S
+-{
+-    HI_DRV_VPSS_BUFFER_TYPE_E eBufType;
+-
+-    HI_U32 u32BufNumber;     /**bBufferNumber must be <= DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_NUMBER */
+-    HI_U32 u32BufSize;       /** every buffer size in Byte */
+-    HI_U32 u32BufStride;     /**only for HI_DRV_VPSS_BUF_USER_ALLOC_VPSS_MANAGE */
+-    //HI_U32 u32BufPhyAddr[DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_NUMBER]; /*128bit aligned */
+-    HI_U32 u32BufPhyAddr[DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_EXT_NUMBER]; /*128bit aligned */
+-}HI_DRV_VPSS_BUFLIST_CFG_S;
+-
+-/**defines the Port attr.*/
+-/**CNcomment:?¡§¨°?¨º?3????¨²????*/
+-typedef struct
+-{
+-    HI_DRV_COLOR_SPACE_E eDstCS;        /**Output color space*/
+-
+-    HI_BOOL bOnlyKeyFrame;      /* ??o?¨®2?tFRC1¡è¡Á¡Â¡ê?¦Ì?¨®¡ã?¡ê¨º??¡äD¨¨¨°a¨º?3?¡¤????¡ä??¡ê?TV?¨¤¨®D */
+-    HI_BOOL bLBDCropEn;         /* ?¡¥¨¬?CROP¨°??¨¬2a¦Ì?¦Ì?o¨²¡À?¡ê?TV?¨¤¨®D */
+-    HI_RECT_S stVideoRect;      /* TV LBXD¨¨?¨® */
+-
+-    HI_RECT_S stInRect;
+-    HI_BOOL   bUseCropRect;
+-    HI_DRV_CROP_RECT_S stCropRect;
+-
+-    HI_DRV_PIXEL_BITWIDTH_E  enOutBitWidth;
+-
+-    HI_DRV_VPSS_PORT_PROCESS_S stProcCtrl;
+-
+-    /*display Info*/
+-    HI_DRV_ASPECT_RATIO_S stDispPixAR;
+-    HI_DRV_ASP_RAT_MODE_E eAspMode;
+-    HI_DRV_ASPECT_RATIO_S stCustmAR;
+-
+-    HI_S32  s32OutputWidth;
+-    HI_S32  s32OutputHeight;
+-
+-    HI_BOOL   bInterlaced;                /**display timing*/
+-    HI_RECT_S stScreen;                   /**display screen resolution*/
+-
+-    HI_DRV_PIX_FORMAT_E eFormat;            /**Output pix format*/
+-    HI_DRV_VPSS_BUFLIST_CFG_S stBufListCfg;
+-    HI_U32 u32MaxFrameRate;                 /* in 1/100 HZ  */
+-
+-    HI_BOOL  bTunnelEnable;
+-    HI_S32  s32SafeThr;                 /**if Tunnel is  enabled, it is used to keep logic W/R order*/
+-                                        /**CNcomment:¡ã2¨¨?????¡ê?0~100¡ê??a¨º?3???¨°?¨ª¨º3¨¦¦Ì?¡ã¨´¡¤?¡À¨¨.
+-                                                    0¡À¨ª¨º???¨º¡À?¨¦??o¨®??¡ê?100¡À¨ª¨º?¨ª¨º¨¨?¨ª¨º3¨¦2??¨¹??o¨®?? */
+-    HI_BOOL   b3Dsupport;
+-    HI_BOOL   bPassThrough;
+-
+-    HI_DRV_VPSS_ROTATION_E enRotation;
+-    HI_BOOL bVertFlip;
+-    HI_BOOL bHoriFlip;
+-}HI_DRV_VPSS_PORT_CFG_S;
+-
+-
+-/**defines VPSS bypass ATTR */
+-typedef struct
+-{
+-    HI_U32 u32InputWidth;
+-    HI_U32 u32InputHeight;
+-    HI_DRV_PIX_FORMAT_E enInputPixFormat;
+-    HI_U32 u32InputFrameRate;
+-    HI_BOOL bVpssBypass;
+-}HI_DRV_VPSS_BYPASSATTR_S;
+-
+-typedef struct
+-{
+-    VPSS_HANDLE hPort;
+-    HI_BOOL bAvailable;
+-}HI_DRV_VPSS_PORT_AVAILABLE_S;
+-
+-/**defines the user control command.*/
+-typedef enum
+-{
+-    HI_DRV_VPSS_USER_COMMAND_IMAGEREADY = 0,
+-    HI_DRV_VPSS_USER_COMMAND_RESET,
+-    HI_DRV_VPSS_USER_COMMAND_CHECKALLDONE,
+-    HI_DRV_VPSS_USER_COMMAND_CHECKAVAILABLE,
+-    HI_DRV_VPSS_USER_COMMAND_START,
+-    HI_DRV_VPSS_USER_COMMAND_STOP,
+-    HI_DRV_VPSS_USER_COMMAND_CHANGEIP,
+-    HI_DRV_VPSS_USER_COMMAND_STOREPRIV,
+-    HI_DRV_VPSS_USER_COMMAND_CHECKBYPASS,
+-    HI_DRV_VPSS_USER_COMMAND_BUTT
+-}HI_DRV_VPSS_USER_COMMAND_E;
+-
+-/**defines the out buffer state structure.*/
+-/**CNcomment:?¡§¨°?¨º?3???¡ä??¨®¨¢D¡Á¡ä¨¬?*/
+-typedef struct
+-{
+-    HI_U32 u32TotalBufNumber;
+-    HI_U32 u32FulBufNumber;
+-}HI_DRV_VPSS_PORT_BUFLIST_STATE_S;
+-
+-
+-typedef enum
+-{
+-    HI_DRV_VPSS_BUFFUL_PAUSE = 0,
+-    HI_DRV_VPSS_BUFFUL_KEEPWORKING,
+-    HI_DRV_VPSS_BUFFUL_BUTT
+-}HI_DRV_VPSS_BUFFUL_STRATAGY_E;
+-
+-
+-/**defines the Pre-Module Mutual Mode.*/
+-/**CNcomment:?¡§¨°?¨®??¡ã???¡ê?¨¦???£¤?¡ê¨º?*/
+-typedef enum
+-{
+-    VPSS_SOURCE_MODE_USERACTIVE = 0,
+-    VPSS_SOURCE_MODE_VPSSACTIVE,
+-    VPSS_SOURCE_MODE_BUTT
+-}HI_DRV_VPSS_SOURCE_MODE_E;
+-
+-typedef HI_S32 (*PFN_VPSS_SRC_FUNC)(VPSS_HANDLE hVPSS,HI_DRV_VIDEO_FRAME_S *pstImage);
+-
+-typedef struct
+-{
+-    PFN_VPSS_SRC_FUNC VPSS_GET_SRCIMAGE;
+-    PFN_VPSS_SRC_FUNC VPSS_REL_SRCIMAGE;
+-}HI_DRV_VPSS_SOURCE_FUNC_S;
+-
+-/**defines the user buffer structure.*/
+-/**CNcomment:?¡§¨°?VPSS?¨°¨ªa2?¨¦¨º??¦Ì?BUFER?¨¢11*/
+-typedef struct
+-{
+-    VPSS_HANDLE hPort;
+-    HI_U8* pu8StartVirAddr;
+-    HI_U32 u32StartPhyAddr;
+-    HI_U32 u32Size;
+-    HI_U32 u32Stride;
+-    HI_U32 u32FrmH;
+-    HI_U32 u32FrmW;
+-	HI_U32 u32PrivDataPhyAddr;
+-    HI_U8* pu8PrivDataVirAddr;
+-    HI_U32 u32PrivDataSize;
+-}HI_DRV_VPSS_FRMBUF_S;
+-
+-typedef struct
+-{
+-    VPSS_HANDLE hPort;
+-    HI_DRV_VIDEO_FRAME_S stFrame;
+-}HI_DRV_VPSS_FRMINFO_S;
+-
+-typedef struct
+-{
+-    VPSS_HANDLE hPort;
+-    HI_BOOL bAvailable;
+-}HI_DRV_VPSS_BUFINFO_S;
+-
+-/**defines the vpss process event.*/
+-/**CNcomment:?¡§¨°?VPSS¡ä|¨¤¨ª¨º??t*/
+-typedef enum
+-{
+-    VPSS_EVENT_BUFLIST_FULL,
+-    VPSS_EVENT_GET_FRMBUFFER,
+-    VPSS_EVENT_REL_FRMBUFFER,
+-    VPSS_EVENT_NEW_FRAME,
+-    VPSS_EVENT_CHECK_FRAMEBUFFER,
+-    VPSS_EVENT_TASK_COMPLETE,
+-    VPSS_EVENT_BUTT,
+-}HI_DRV_VPSS_EVENT_E;
+-
+-/**defines the vpss process event callback.*/
+-/**CNcomment:?¡§¨°?VPSS¡ä|¨¤¨ª¨º??t??¦Ì¡Â
+-    VPSS_EVENT_BUFLIST_FULL:¨º?3???¡ä??¨²¡ê?¨¦?¡À¡§HI_DRV_VPSS_BUFFUL_STRATAGY_E?¨¢11¨¬?¡ê?¨®??¡ì¡¤¦Ì??¡ä|¨¤¨ª2???
+-    VPSS_EVENT_GET_FRMBUFFER:??¨¨?¨º?3???¡ä?¡ê?¨¦?¡À¡§HI_DRV_VPSS_FRMBUF_S?¨¢11¨¬?¡ê?¨®??¡ì?3?¦Ì
+-    VPSS_EVENT_REL_FRMBUFFER:¨º¨ª¡¤?¨®??¡ì??¡ä?¡ê?¨¦?¡À¡§HI_DRV_VPSS_FRMBUF_S?¨¢11¨¬?¡ê?¨®??¡ì¡ä|¨¤¨ª
+-    VPSS_EVENT_NEW_FRAME:D???¡ä|¨¤¨ª¨ª¨º3¨¦¡ê?¨¦?¡À¡§HI_NULL¡ê?¨®??¡ì¡ä|¨¤¨ª*/
+-typedef HI_S32 (*PFN_VPSS_CALLBACK)(HI_HANDLE hDst, HI_DRV_VPSS_EVENT_E enEventID, HI_VOID *pstArgs);
+-
+-
+-/******************************* API declaration *****************************/
+-
+-HI_S32 HI_DRV_VPSS_GlobalInit(HI_VOID);
+-HI_S32 HI_DRV_VPSS_GlobalDeInit(HI_VOID);
+-
+-HI_S32  HI_DRV_VPSS_GetDefaultCfg(HI_DRV_VPSS_CFG_S *pstVpssCfg);
+-
+-HI_S32  HI_DRV_VPSS_CreateVpss(HI_DRV_VPSS_CFG_S *pstVpssCfg,VPSS_HANDLE *phVPSS);
+-HI_S32  HI_DRV_VPSS_DestroyVpss(VPSS_HANDLE hVPSS);
+-
+-HI_S32  HI_DRV_VPSS_SetVpssCfg(VPSS_HANDLE hVPSS, HI_DRV_VPSS_CFG_S *pstVpssCfg);
+-HI_S32  HI_DRV_VPSS_GetVpssCfg(VPSS_HANDLE hVPSS, HI_DRV_VPSS_CFG_S *pstVpssCfg);
+-
+-HI_S32  HI_DRV_VPSS_GetDefaultPortCfg(HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg);
+-
+-HI_S32  HI_DRV_VPSS_CreatePort(VPSS_HANDLE hVPSS, HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg, VPSS_HANDLE *phPort);
+-HI_S32  HI_DRV_VPSS_DestroyPort(VPSS_HANDLE hPort);
+-
+-HI_S32  HI_DRV_VPSS_GetPortCfg(VPSS_HANDLE hPort, HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg);
+-HI_S32  HI_DRV_VPSS_SetPortCfg(VPSS_HANDLE hPort, HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg);
+-
+-HI_S32  HI_DRV_VPSS_EnablePort(VPSS_HANDLE hPort, HI_BOOL bEnable);
+-
+-HI_S32  HI_DRV_VPSS_SendCommand(VPSS_HANDLE hVPSS, HI_DRV_VPSS_USER_COMMAND_E eCommand, HI_VOID *pArgs);
+-
+-HI_S32  HI_DRV_VPSS_GetPortFrame(VPSS_HANDLE hPort, HI_DRV_VIDEO_FRAME_S *pstVpssFrame);
+-HI_S32  HI_DRV_VPSS_RelPortFrame(VPSS_HANDLE hPort, HI_DRV_VIDEO_FRAME_S *pstVpssFrame);
+-
+-HI_S32  HI_DRV_VPSS_GetPortBufListState(VPSS_HANDLE hPort, HI_DRV_VPSS_PORT_BUFLIST_STATE_S *pstVpssBufListState);
+-HI_BOOL  HI_DRV_VPSS_CheckPortBufListFul(VPSS_HANDLE hPort);
+-
+-HI_S32 HI_DRV_VPSS_SetSourceMode(VPSS_HANDLE hVPSS,
+-                          HI_DRV_VPSS_SOURCE_MODE_E eSrcMode,
+-                          HI_DRV_VPSS_SOURCE_FUNC_S* pstRegistSrcFunc);
+-
+-HI_S32  HI_DRV_VPSS_PutImage(VPSS_HANDLE hVPSS, HI_DRV_VIDEO_FRAME_S *pstImage);
+-HI_S32  HI_DRV_VPSS_GetImage(VPSS_HANDLE hVPSS, HI_DRV_VIDEO_FRAME_S *pstImage);
+-
+-HI_S32  HI_DRV_VPSS_RegistHook(VPSS_HANDLE hVPSS, HI_HANDLE hDst, PFN_VPSS_CALLBACK pfVpssCallback);
+-
+-HI_S32  HI_DRV_VPSS_InvokeDisplayInfo(HI_DISP_DISPLAY_INFO_S *pstDisplayInfo);
+-#endif
+-
++#ifndef __HI_DRV_VPSS_H__
++#define __HI_DRV_VPSS_H__
++
++#include "hi_type.h"
++#include "hi_drv_video.h"
++#include "hi_drv_disp.h"
++
++/** Handle Definition.*/
++/**<CNcomment: ??¡À¨²?¡§¨°? \n
++      ??¡À¨²¨º¦Ì?¨º¨¦?¨º?¨°?????¨ºy¡ê?¨®?¨®¨²¡À¨º¨º?chano¨ªport¨º¡À¨ºy?¦Ì¦Ì??¡§¨°?¨®D?¨´2?¨ª?¡ê?¦Ì???¨°?-1¡Á¡Â?a?TD¡ì??¡À¨²?¡ê\n
++      1. VPSS¨º¦Ì¨¤y??¡À¨²¡ê????¦Ì?a¨º¦Ì¨¤y¦Ì??¡Â¨°yo?(ID) \n
++      2. ???¨²??¡À¨²¡ê????¦Ì¨°a¡À¨ª¨º?¨¢????¨²¨¨Y: ?¨´¨º?¨ª¡§¦Ì¨¤?¡Â¨°y¡ê?¨°??¡ã???¨²¡À?¨¦¨ª¦Ì??¡Â¨°y?¡ê\n
++              = ¨º¦Ì¨¤y?¡Â¨°y*256 + ???¨²?¡Â¨°y */
++
++typedef HI_S32 VPSS_HANDLE;
++#define VPSS_INVALID_HANDLE (-1)
++
++#define PORTHANDLE_TO_VPSSID(hPort)    (hPort >> 8)
++#define PORTHANDLE_TO_PORTID(hPort)    (hPort & 0xff)
++
++/*************************** Macro definition ****************************/
++#define DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_NUMBER 40
++#define DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_EXT_NUMBER 12
++#define DEF_HI_DRV_VPSS_PORT_MAX_NUMBER 3
++
++/** Last Frame Flag,indicate it is a valid frame.*/
++/**<CNcomment: ?¡ã??¡ä?¨¨?¦Ì?¡Á?o¨®¨°???¡À¨º??¡ê?????¨®DD¡ì*/
++#define DEF_HI_DRV_VPSS_LAST_FRAME_FLAG 0xffee
++
++/** Last Frame Flag,indicate it is an invalid frame.*/
++/**<CNcomment: ?¡ã??¡ä?¨¨?¦Ì?¡Á?o¨®¨°???¡À¨º??¡ê??????TD¡ì*/
++#define DEF_HI_DRV_VPSS_LAST_ERROR_FLAG 0xff00
++
++#define DEF_HI_DRV_VPSS_FAKE_FLAG 0xff11 //resolution change
++/*************************** Structure Definition ****************************/
++
++/**defines the vertical flip type.*/
++/**CNcomment:?¡§¨°?¨º?¡¤?¡ä¨°?a¡ä1?¡À¡¤-¡Áa1|?¨¹*/
++typedef enum
++{
++    HI_DRV_VPSS_HFLIP_DISABLE = 0,
++    HI_DRV_VPSS_HFLIP_ENABLE,
++    HI_DRV_VPSS_HFLIP_BUTT
++}HI_DRV_VPSS_HFLIP_E;
++
++/**defines the horizon flip type.*/
++/**CNcomment:?¡§¨°?¨º?¡¤?¡ä¨°?a????¡¤-¡Áa1|?¨¹*/
++typedef enum
++{
++    HI_DRV_VPSS_VFLIP_DISABLE = 0,
++    HI_DRV_VPSS_VFLIP_ENABLE,
++    HI_DRV_VPSS_VFLIP_BUTT
++}HI_DRV_VPSS_VFLIP_E;
++
++
++/**defines the ROTATION type.*/
++/**CNcomment:?¡§¨°?¨º¨®?¦ÌDy¡Áa???¨¨*/
++typedef enum
++{
++    HI_DRV_VPSS_ROTATION_DISABLE = 0,
++    HI_DRV_VPSS_ROTATION_90,
++    HI_DRV_VPSS_ROTATION_180,
++    HI_DRV_VPSS_ROTATION_270,
++    HI_DRV_VPSS_ROTATION_BUTT
++}HI_DRV_VPSS_ROTATION_E;
++
++/*Delete*/
++typedef enum
++{
++    HI_DRV_VPSS_STEREO_DISABLE = 0,
++    HI_DRV_VPSS_STEREO_SIDE_BY_SIDE,
++    HI_DRV_VPSS_STEREO_TOP_AND_BOTTOM,
++    HI_DRV_VPSS_STEREO_TIME_INTERLACED,
++    HI_DRV_VPSS_STEREO_BUTT
++}HI_DRV_VPSS_STEREO_E;
++
++
++/**defines the Deinterlace mode.
++    3FIELD¡ê?4FIELD¡ê?5FIELD is supported?¡ê
++    Default is HI_DRV_VPSS_DIE_5FIELD*/
++/**CNcomment:?¡§¨°?¨¨£¤??DD??¡¤¡§?¡ê¨º?
++    ???¡ì3?¨¨y?¡é???¡é??3??¡ê¨º?
++    ??¨¨??????a??3??¡ê¨º?*/
++typedef enum
++{
++    HI_DRV_VPSS_DIE_DISABLE = 0,
++    HI_DRV_VPSS_DIE_AUTO,
++    HI_DRV_VPSS_DIE_2FIELD,
++    HI_DRV_VPSS_DIE_3FIELD,
++    HI_DRV_VPSS_DIE_4FIELD,
++    HI_DRV_VPSS_DIE_5FIELD,
++    HI_DRV_VPSS_DIE_6FIELD,
++    HI_DRV_VPSS_DIE_7FIELD,
++    HI_DRV_VPSS_DIE_BUTT
++}HI_DRV_VPSS_DIE_MODE_E;
++
++/*Delete*/
++typedef enum
++{
++    HI_DRV_VPSS_ACC_DISABLE = 0,
++    HI_DRV_VPSS_ACC_LOW,
++    HI_DRV_VPSS_ACC_MIDDLE,
++    HI_DRV_VPSS_ACC_HIGH,
++    HI_DRV_VPSS_ACC_BUTT
++}HI_DRV_VPSS_ACC_E;
++
++/*Delete*/
++typedef enum
++{
++    HI_DRV_VPSS_ACM_DISABLE = 0,
++    HI_DRV_VPSS_ACM_BLUE,
++    HI_DRV_VPSS_ACM_GREEN,
++    HI_DRV_VPSS_ACM_BG,
++    HI_DRV_VPSS_ACM_SKIN,
++    HI_DRV_VPSS_ACM_BUTT
++}HI_DRV_VPSS_ACM_E;
++
++/*Delete*/
++typedef enum
++{
++    HI_DRV_VPSS_CC_DISABLE = 0,
++    HI_DRV_VPSS_CC_ENABLE,
++    HI_DRV_VPSS_CC_AUTO,
++    HI_DRV_VPSS_CC_BUTT
++}HI_DRV_VPSS_CC_E;
++
++/**defines the Sharpen type.*/
++/**CNcomment:?¡§¨°?¨¨??¡¥?¡ê¨º?*/
++/*D¨¨¨°a¨¨¡¤¨¨?*/
++typedef enum
++{
++    HI_DRV_VPSS_SHARPNESS_DISABLE = 0,
++    HI_DRV_VPSS_SHARPNESS_ENABLE,
++    HI_DRV_VPSS_SHARPNESS_AUTO,
++    HI_DRV_VPSS_SHARPNESS_BUTT
++}HI_DRV_VPSS_SHARPNESS_E;
++
++/**defines the Dnr type.*/
++/**CNcomment:?¡§¨°?¨¨£¤?¨¦¨¨£¤??¨¢???¡¤¡§?¡ê¨º?*/
++typedef enum
++{
++    HI_DRV_VPSS_DNR_DISABLE = 0,
++    HI_DRV_VPSS_DNR_ENABLE,
++    HI_DRV_VPSS_DNR_AUTO,
++    HI_DRV_VPSS_DNR_BUTT
++}HI_DRV_VPSS_DNR_E;
++
++/*Delete ,will be HI_DRV_VPSS_DNR_E*/
++typedef enum
++{
++    HI_DRV_VPSS_DB_DISABLE = 0,
++    HI_DRV_VPSS_DB_ENABLE,
++    HI_DRV_VPSS_DB_AUTO,
++    HI_DRV_VPSS_DB_BUTT
++}HI_DRV_VPSS_DB_E;
++/*Delete ,will be HI_DRV_VPSS_DNR_E*/
++typedef enum
++{
++    HI_DRV_VPSS_DR_DISABLE = 0,
++    HI_DRV_VPSS_DR_ENABLE,
++    HI_DRV_VPSS_DR_AUTO,
++    HI_DRV_VPSS_DR_BUTT
++}HI_DRV_VPSS_DR_E;
++/*delete*/
++/**defines the color space convert type.*/
++/**CNcomment:?¡§¨°?¨¦?2¨º????¡Áa???¡ê¨º?*/
++typedef enum
++{
++    HI_DRV_VPSS_CSC_DISABLE = 0,
++    HI_DRV_VPSS_CSC_ENABLE,
++    HI_DRV_VPSS_CSC_AUTO,
++    HI_DRV_VPSS_CSC_BUTT
++}HI_DRV_VPSS_CSC_E;
++
++/**defines the fidelity type.*/
++/**CNcomment:?¡§¨°?¡À¡ê??¡ä|¨¤¨ª?¡ê¨º?*/
++typedef enum
++{
++    HI_DRV_VPSS_FIDELITY_DISABLE = 0,
++    HI_DRV_VPSS_FIDELITY_ENABLE,
++    HI_DRV_VPSS_FIDELITY_AUTO,
++    HI_DRV_VPSS_FIDELITY_BUTT
++}HI_DRV_VPSS_FIDELITY_E;
++
++
++typedef enum
++{
++    HI_DRV_VPSS_SCENE_MODE_NORMAL,
++    HI_DRV_VPSS_SCENE_MODE_VP_PREVIEW,
++    HI_DRV_VPSS_SCENE_MODE_VP_REMOTE,
++    HI_DRV_VPSS_SCENE_MODE_BUTT,
++}HI_DRV_VPSS_SCENEMODE_E;
++
++
++typedef struct
++{
++    HI_DRV_VPSS_HFLIP_E  eHFlip;
++    HI_DRV_VPSS_VFLIP_E  eVFlip;
++    HI_DRV_VPSS_STEREO_E eStereo;
++    HI_DRV_VPSS_ROTATION_E  eRotation;
++    HI_DRV_VPSS_DIE_MODE_E eDEI;
++    HI_DRV_VPSS_ACC_E eACC;
++    HI_DRV_VPSS_ACM_E eACM;
++    HI_DRV_VPSS_CC_E eCC;
++    HI_DRV_VPSS_SHARPNESS_E eSharpness;
++    HI_DRV_VPSS_DB_E eDB;
++    HI_DRV_VPSS_DR_E eDR;
++
++    HI_BOOL bIFMD;
++
++    HI_RECT_S stInRect;
++    HI_BOOL   bUseCropRect;
++    HI_DRV_CROP_RECT_S stCropRect;
++}HI_DRV_VPSS_PROCESS_S;
++
++typedef struct
++{
++    HI_DRV_VPSS_CSC_E eCSC;
++    HI_DRV_VPSS_FIDELITY_E eFidelity;
++}HI_DRV_VPSS_PORT_PROCESS_S;
++
++
++/**defines the vpss instance attr.*/
++/**CNcomment:?¡§¨°??e??DD?¨¬2a????*/
++typedef enum
++{
++    HI_DRV_VPSS_PRODETECT_PROGRESSIVE = 0,
++    HI_DRV_VPSS_PRODETECT_INTERLACE,
++    HI_DRV_VPSS_PRODETECT_AUTO,
++    HI_DRV_VPSS_PRODETECT_OFF,
++    HI_DRV_VPSS_PRODETECT_BUTT
++}HI_DRV_VPSS_PRODETECT_E;
++
++/**defines the vpss IP attr.*/
++/**CNcomment:?¡§¨°?VPSS¡ã¨®?¡§IP????*/
++typedef enum
++{
++    HI_DRV_VPSS_IPMODE_AUTO = 0,
++    HI_DRV_VPSS_IPMODE_IP0,
++    HI_DRV_VPSS_IPMODE_IP1,
++    HI_DRV_VPSS_IPMODE_BUTT
++}HI_DRV_VPSS_IPMODE_E;
++
++
++
++/**defines the vpss instance attr.*/
++/**CNcomment:?¡§¨°?¨º¦Ì¨¤y????*/
++typedef struct
++{
++    HI_S32  s32Priority;  /**defines the instance priority.
++                                default 16
++                                0 is valid ,1 ~ 31 is more and more prior
++                                */
++                          /**CNcomment:0?TD¡ì¡ê?1 ~ 31?a?y3¡ê¨®??¨¨??¡ê?¨ºy?¦Ì??¡ä¨®¨®??¨¨??????*/
++
++    HI_BOOL bAlwaysFlushSrc;    /**whether process the newest frame.
++                                        */
++                                /**CNcomment:¨º?¡¤???¡ä|¨¤¨ª¡Á?D?¨°???¡ê??¨²¦Ì¨ª?¨®3¨´?¡ê¨º??????aTRUE
++                                            ?a?¨´??¡ä????¨¢?¨¢??Src buf¡ê???¨¢?¡Á?D?¨°???¡ä|¨¤¨ª */
++
++    HI_DRV_VPSS_PRODETECT_E enProgInfo;
++
++    HI_BOOL bProgRevise;
++    HI_DRV_VPSS_SCENEMODE_E enSceneMode;
++    HI_DRV_COLOR_SPACE_E enSrcCS;
++
++    HI_DRV_VPSS_PROCESS_S stProcCtrl;
++
++	HI_BOOL bSecure;
++
++}HI_DRV_VPSS_CFG_S;
++
++
++/**defines the out buffer mode.*/
++/**CNcomment:?¡§¨°?¨º?3???¡ä?1¨¹¨¤¨ª?¡ê¨º?*/
++typedef enum hiDRV_VPSS_BUFFER_TYPE_E{
++    HI_DRV_VPSS_BUF_VPSS_ALLOC_MANAGE = 0,
++    HI_DRV_VPSS_BUF_USER_ALLOC_MANAGE,
++    HI_DRV_VPSS_BUF_USER_ALLOC_VPSS_MANAGE,
++    HI_DRV_VPSS_BUF_TYPE_BUTT
++}HI_DRV_VPSS_BUFFER_TYPE_E;
++
++typedef struct hiDRV_VPSS_BUFFER_CFG_S
++{
++    HI_DRV_VPSS_BUFFER_TYPE_E eBufType;
++
++    HI_U32 u32BufNumber;     /**bBufferNumber must be <= DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_NUMBER */
++    HI_U32 u32BufSize;       /** every buffer size in Byte */
++    HI_U32 u32BufStride;     /**only for HI_DRV_VPSS_BUF_USER_ALLOC_VPSS_MANAGE */
++    //HI_U32 u32BufPhyAddr[DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_NUMBER]; /*128bit aligned */
++    HI_U32 u32BufPhyAddr[DEF_HI_DRV_VPSS_PORT_BUFFER_MAX_EXT_NUMBER]; /*128bit aligned */
++}HI_DRV_VPSS_BUFLIST_CFG_S;
++
++/**defines the Port attr.*/
++/**CNcomment:?¡§¨°?¨º?3????¨²????*/
++typedef struct
++{
++    HI_DRV_COLOR_SPACE_E eDstCS;        /**Output color space*/
++
++    HI_BOOL bOnlyKeyFrame;      /* ??o?¨®2?tFRC1¡è¡Á¡Â¡ê?¦Ì?¨®¡ã?¡ê¨º??¡äD¨¨¨°a¨º?3?¡¤????¡ä??¡ê?TV?¨¤¨®D */
++    HI_BOOL bLBDCropEn;         /* ?¡¥¨¬?CROP¨°??¨¬2a¦Ì?¦Ì?o¨²¡À?¡ê?TV?¨¤¨®D */
++    HI_RECT_S stVideoRect;      /* TV LBXD¨¨?¨® */
++
++    HI_RECT_S stInRect;
++    HI_BOOL   bUseCropRect;
++    HI_DRV_CROP_RECT_S stCropRect;
++
++    HI_DRV_PIXEL_BITWIDTH_E  enOutBitWidth;
++
++    HI_DRV_VPSS_PORT_PROCESS_S stProcCtrl;
++
++    /*display Info*/
++    HI_DRV_ASPECT_RATIO_S stDispPixAR;
++    HI_DRV_ASP_RAT_MODE_E eAspMode;
++    HI_DRV_ASPECT_RATIO_S stCustmAR;
++
++    HI_S32  s32OutputWidth;
++    HI_S32  s32OutputHeight;
++
++    HI_BOOL   bInterlaced;                /**display timing*/
++    HI_RECT_S stScreen;                   /**display screen resolution*/
++
++    HI_DRV_PIX_FORMAT_E eFormat;            /**Output pix format*/
++    HI_DRV_VPSS_BUFLIST_CFG_S stBufListCfg;
++    HI_U32 u32MaxFrameRate;                 /* in 1/100 HZ  */
++
++    HI_BOOL  bTunnelEnable;
++    HI_S32  s32SafeThr;                 /**if Tunnel is  enabled, it is used to keep logic W/R order*/
++                                        /**CNcomment:¡ã2¨¨?????¡ê?0~100¡ê??a¨º?3???¨°?¨ª¨º3¨¦¦Ì?¡ã¨´¡¤?¡À¨¨.
++                                                    0¡À¨ª¨º???¨º¡À?¨¦??o¨®??¡ê?100¡À¨ª¨º?¨ª¨º¨¨?¨ª¨º3¨¦2??¨¹??o¨®?? */
++    HI_BOOL   b3Dsupport;
++    HI_BOOL   bPassThrough;
++
++    HI_DRV_VPSS_ROTATION_E enRotation;
++    HI_BOOL bVertFlip;
++    HI_BOOL bHoriFlip;
++    HI_U32  u32BoxReserved[4];   /* box kernel (UNF 3.3.4): port cfg is 16 bytes larger */
++}HI_DRV_VPSS_PORT_CFG_S;
++
++
++/**defines VPSS bypass ATTR */
++typedef struct
++{
++    HI_U32 u32InputWidth;
++    HI_U32 u32InputHeight;
++    HI_DRV_PIX_FORMAT_E enInputPixFormat;
++    HI_U32 u32InputFrameRate;
++    HI_BOOL bVpssBypass;
++}HI_DRV_VPSS_BYPASSATTR_S;
++
++typedef struct
++{
++    VPSS_HANDLE hPort;
++    HI_BOOL bAvailable;
++}HI_DRV_VPSS_PORT_AVAILABLE_S;
++
++/**defines the user control command.*/
++typedef enum
++{
++    HI_DRV_VPSS_USER_COMMAND_IMAGEREADY = 0,
++    HI_DRV_VPSS_USER_COMMAND_RESET,
++    HI_DRV_VPSS_USER_COMMAND_CHECKALLDONE,
++    HI_DRV_VPSS_USER_COMMAND_CHECKAVAILABLE,
++    HI_DRV_VPSS_USER_COMMAND_START,
++    HI_DRV_VPSS_USER_COMMAND_STOP,
++    HI_DRV_VPSS_USER_COMMAND_CHANGEIP,
++    HI_DRV_VPSS_USER_COMMAND_STOREPRIV,
++    HI_DRV_VPSS_USER_COMMAND_CHECKBYPASS,
++    HI_DRV_VPSS_USER_COMMAND_BUTT
++}HI_DRV_VPSS_USER_COMMAND_E;
++
++/**defines the out buffer state structure.*/
++/**CNcomment:?¡§¨°?¨º?3???¡ä??¨®¨¢D¡Á¡ä¨¬?*/
++typedef struct
++{
++    HI_U32 u32TotalBufNumber;
++    HI_U32 u32FulBufNumber;
++}HI_DRV_VPSS_PORT_BUFLIST_STATE_S;
++
++
++typedef enum
++{
++    HI_DRV_VPSS_BUFFUL_PAUSE = 0,
++    HI_DRV_VPSS_BUFFUL_KEEPWORKING,
++    HI_DRV_VPSS_BUFFUL_BUTT
++}HI_DRV_VPSS_BUFFUL_STRATAGY_E;
++
++
++/**defines the Pre-Module Mutual Mode.*/
++/**CNcomment:?¡§¨°?¨®??¡ã???¡ê?¨¦???£¤?¡ê¨º?*/
++typedef enum
++{
++    VPSS_SOURCE_MODE_USERACTIVE = 0,
++    VPSS_SOURCE_MODE_VPSSACTIVE,
++    VPSS_SOURCE_MODE_BUTT
++}HI_DRV_VPSS_SOURCE_MODE_E;
++
++typedef HI_S32 (*PFN_VPSS_SRC_FUNC)(VPSS_HANDLE hVPSS,HI_DRV_VIDEO_FRAME_S *pstImage);
++
++typedef struct
++{
++    PFN_VPSS_SRC_FUNC VPSS_GET_SRCIMAGE;
++    PFN_VPSS_SRC_FUNC VPSS_REL_SRCIMAGE;
++}HI_DRV_VPSS_SOURCE_FUNC_S;
++
++/**defines the user buffer structure.*/
++/**CNcomment:?¡§¨°?VPSS?¨°¨ªa2?¨¦¨º??¦Ì?BUFER?¨¢11*/
++typedef struct
++{
++    VPSS_HANDLE hPort;
++    HI_U8* pu8StartVirAddr;
++    HI_U32 u32StartPhyAddr;
++    HI_U32 u32Size;
++    HI_U32 u32Stride;
++    HI_U32 u32FrmH;
++    HI_U32 u32FrmW;
++	HI_U32 u32PrivDataPhyAddr;
++    HI_U8* pu8PrivDataVirAddr;
++    HI_U32 u32PrivDataSize;
++}HI_DRV_VPSS_FRMBUF_S;
++
++typedef struct
++{
++    VPSS_HANDLE hPort;
++    HI_DRV_VIDEO_FRAME_S stFrame;
++}HI_DRV_VPSS_FRMINFO_S;
++
++typedef struct
++{
++    VPSS_HANDLE hPort;
++    HI_BOOL bAvailable;
++}HI_DRV_VPSS_BUFINFO_S;
++
++/**defines the vpss process event.*/
++/**CNcomment:?¡§¨°?VPSS¡ä|¨¤¨ª¨º??t*/
++typedef enum
++{
++    VPSS_EVENT_BUFLIST_FULL,
++    VPSS_EVENT_GET_FRMBUFFER,
++    VPSS_EVENT_REL_FRMBUFFER,
++    VPSS_EVENT_NEW_FRAME,
++    VPSS_EVENT_CHECK_FRAMEBUFFER,
++    VPSS_EVENT_TASK_COMPLETE,
++    VPSS_EVENT_BUTT,
++}HI_DRV_VPSS_EVENT_E;
++
++/**defines the vpss process event callback.*/
++/**CNcomment:?¡§¨°?VPSS¡ä|¨¤¨ª¨º??t??¦Ì¡Â
++    VPSS_EVENT_BUFLIST_FULL:¨º?3???¡ä??¨²¡ê?¨¦?¡À¡§HI_DRV_VPSS_BUFFUL_STRATAGY_E?¨¢11¨¬?¡ê?¨®??¡ì¡¤¦Ì??¡ä|¨¤¨ª2???
++    VPSS_EVENT_GET_FRMBUFFER:??¨¨?¨º?3???¡ä?¡ê?¨¦?¡À¡§HI_DRV_VPSS_FRMBUF_S?¨¢11¨¬?¡ê?¨®??¡ì?3?¦Ì
++    VPSS_EVENT_REL_FRMBUFFER:¨º¨ª¡¤?¨®??¡ì??¡ä?¡ê?¨¦?¡À¡§HI_DRV_VPSS_FRMBUF_S?¨¢11¨¬?¡ê?¨®??¡ì¡ä|¨¤¨ª
++    VPSS_EVENT_NEW_FRAME:D???¡ä|¨¤¨ª¨ª¨º3¨¦¡ê?¨¦?¡À¡§HI_NULL¡ê?¨®??¡ì¡ä|¨¤¨ª*/
++typedef HI_S32 (*PFN_VPSS_CALLBACK)(HI_HANDLE hDst, HI_DRV_VPSS_EVENT_E enEventID, HI_VOID *pstArgs);
++
++
++/******************************* API declaration *****************************/
++
++HI_S32 HI_DRV_VPSS_GlobalInit(HI_VOID);
++HI_S32 HI_DRV_VPSS_GlobalDeInit(HI_VOID);
++
++HI_S32  HI_DRV_VPSS_GetDefaultCfg(HI_DRV_VPSS_CFG_S *pstVpssCfg);
++
++HI_S32  HI_DRV_VPSS_CreateVpss(HI_DRV_VPSS_CFG_S *pstVpssCfg,VPSS_HANDLE *phVPSS);
++HI_S32  HI_DRV_VPSS_DestroyVpss(VPSS_HANDLE hVPSS);
++
++HI_S32  HI_DRV_VPSS_SetVpssCfg(VPSS_HANDLE hVPSS, HI_DRV_VPSS_CFG_S *pstVpssCfg);
++HI_S32  HI_DRV_VPSS_GetVpssCfg(VPSS_HANDLE hVPSS, HI_DRV_VPSS_CFG_S *pstVpssCfg);
++
++HI_S32  HI_DRV_VPSS_GetDefaultPortCfg(HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg);
++
++HI_S32  HI_DRV_VPSS_CreatePort(VPSS_HANDLE hVPSS, HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg, VPSS_HANDLE *phPort);
++HI_S32  HI_DRV_VPSS_DestroyPort(VPSS_HANDLE hPort);
++
++HI_S32  HI_DRV_VPSS_GetPortCfg(VPSS_HANDLE hPort, HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg);
++HI_S32  HI_DRV_VPSS_SetPortCfg(VPSS_HANDLE hPort, HI_DRV_VPSS_PORT_CFG_S *pstVpssPortCfg);
++
++HI_S32  HI_DRV_VPSS_EnablePort(VPSS_HANDLE hPort, HI_BOOL bEnable);
++
++HI_S32  HI_DRV_VPSS_SendCommand(VPSS_HANDLE hVPSS, HI_DRV_VPSS_USER_COMMAND_E eCommand, HI_VOID *pArgs);
++
++HI_S32  HI_DRV_VPSS_GetPortFrame(VPSS_HANDLE hPort, HI_DRV_VIDEO_FRAME_S *pstVpssFrame);
++HI_S32  HI_DRV_VPSS_RelPortFrame(VPSS_HANDLE hPort, HI_DRV_VIDEO_FRAME_S *pstVpssFrame);
++
++HI_S32  HI_DRV_VPSS_GetPortBufListState(VPSS_HANDLE hPort, HI_DRV_VPSS_PORT_BUFLIST_STATE_S *pstVpssBufListState);
++HI_BOOL  HI_DRV_VPSS_CheckPortBufListFul(VPSS_HANDLE hPort);
++
++HI_S32 HI_DRV_VPSS_SetSourceMode(VPSS_HANDLE hVPSS,
++                          HI_DRV_VPSS_SOURCE_MODE_E eSrcMode,
++                          HI_DRV_VPSS_SOURCE_FUNC_S* pstRegistSrcFunc);
++
++HI_S32  HI_DRV_VPSS_PutImage(VPSS_HANDLE hVPSS, HI_DRV_VIDEO_FRAME_S *pstImage);
++HI_S32  HI_DRV_VPSS_GetImage(VPSS_HANDLE hVPSS, HI_DRV_VIDEO_FRAME_S *pstImage);
++
++HI_S32  HI_DRV_VPSS_RegistHook(VPSS_HANDLE hVPSS, HI_HANDLE hDst, PFN_VPSS_CALLBACK pfVpssCallback);
++
++HI_S32  HI_DRV_VPSS_InvokeDisplayInfo(HI_DISP_DISPLAY_INFO_S *pstDisplayInfo);
++#endif
++
+--- /root/drv_win_ioctl.h.orig	2026-11-07 19:38:25.484381845 +0800
++++ msp/drv/include/drv_win_ioctl.h	2026-11-07 19:38:25.588382529 +0800
+@@ -1,421 +1,422 @@
+-/******************************************************************************
+-  Copyright (C), 2001-2011, Hisilicon Tech. Co., Ltd.
+-******************************************************************************
+-File Name     : drv_win_ioctl.h
+-Version       : Initial Draft
+-Author        : Hisilicon multimedia software group
+-Created       : 2012/12/30
+-Last Modified :
+-Description   :
+-Function List :
+-History       :
+-******************************************************************************/
+-#ifndef __DRV_WIN_IOCTL_H__
+-#define __DRV_WIN_IOCTL_H__
+-
+-#ifdef __cplusplus
+-#if __cplusplus
+-extern "C"{
+-#endif
+-#endif
+-
+-#include "hi_type.h"
+-#include "hi_drv_video.h"
+-#include "hi_drv_disp.h"
+-#include "hi_drv_win.h"
+-
+-
+-typedef struct hiWIN_CREATE_S
+-{
+-    HI_HANDLE          hWindow;
+-    HI_DRV_WIN_ATTR_S  WinAttr;
+-    HI_BOOL            bVirtScreen;
+-    HI_BOOL            bMCE;
+-}WIN_CREATE_S;
+-
+-typedef struct hiWIN_ENABLE_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_BOOL   bEnable;
+-}WIN_ENABLE_S;
+-
+-
+-typedef struct hiWIN_SOURCE_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_WIN_SRC_HANDLE_S stSrc;
+-}WIN_SOURCE_S;
+-
+-
+-typedef struct hiWIN_PRIV_INFO_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_WIN_INFO_S stPrivInfo;
+-}WIN_PRIV_INFO_S;
+-
+-typedef struct hiWIN_PLAY_INFO_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_WIN_PLAY_INFO_S stPlayInfo;
+-}WIN_PLAY_INFO_S;
+-
+-typedef struct hiWIN_ZORDER_S
+-{
+-    HI_HANDLE            hWindow;
+-    HI_DRV_DISP_ZORDER_E eZFlag;
+-}WIN_ZORDER_S;
+-
+-typedef struct hiWIN_ORDER_S
+-{
+-    HI_HANDLE    hWindow;
+-    HI_U32       Order;
+-}WIN_ORDER_S;
+-
+-typedef struct hiWIN_FREEZE_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_BOOL   bEnable;
+-    HI_DRV_WIN_SWITCH_E eMode;
+-}WIN_FREEZE_S;
+-
+-typedef struct hiWIN_RESET_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_WIN_SWITCH_E eMode;
+-}WIN_RESET_S;
+-
+-typedef struct hiWIN_FRAME_S
+-{
+-    HI_HANDLE                   hWindow;
+-    HI_DRV_VIDEO_FRAME_S        stFrame;
+-    HI_DRV_DOLBY_META_INFO_S    stDolbyHdrCfg;
+-}WIN_FRAME_S;
+-
+-typedef struct hiWIN_OUT_TYPE_AND_ENGINE_S
+-{
+-    HI_HANDLE                  hWindow;
+-    HI_DRV_VIDEO_FRAME_TYPE_E  enFrmType;
+-    HI_DRV_DISP_OUT_TYPE_E     enDispOutType;
+-    HI_DRV_DISP_XDR_ENGINE_E   enXdrEngine;
+-}WIN_OUT_TYPE_AND_ENGINE_S;
+-
+-typedef struct hiWIN_DISP_OUT_TYPE_AND_GFX_STATE_S
+-{
+-    HI_HANDLE                  hWindow;
+-    HI_DRV_DISP_OUT_TYPE_E     enDispOutType;
+-    HI_BOOL                    bNeedProcessGfx;
+-}WIN_DISP_OUT_TYPE_AND_GFX_STATE_S;
+-
+-
+-typedef struct hiWIN_DOLBYFRAME_S
+-{
+-    HI_HANDLE                  hWindow;
+-    HI_DRV_VIDEO_FRAME_S       stBLFrm;
+-    HI_DRV_VIDEO_FRAME_S       stELFrm;
+-    HI_BOOL                    bELValid;
+-    HI_DRV_DOLBY_META_INFO_S   stDolbyInfo;
+-}WIN_DOLBYFRAME_S;
+-
+-typedef struct hiWIN_XDR_FRAME_S
+-{
+-    HI_HANDLE                  hWindow;
+-    HI_BOOL                    bEnhanceValid; /* dolby frame may has enhance frame(EL). */
+-    HI_DRV_VIDEO_FRAME_S       stBaseFrm;     /* SDR/HDR10/HLG/SLF/BL frame.*/
+-    HI_DRV_VIDEO_FRAME_S       stEnhanceFrm;  /* EL frame.*/
+-    HI_DRV_DOLBY_META_INFO_S   stDolbyInfo;
+-    HI_DRV_DISP_OUT_TYPE_E     enDispOutType;
+-    HI_DRV_DISP_XDR_ENGINE_E   enXdrEngine;
+-}WIN_XDR_FRAME_S;
+-
+-typedef struct hiWIN_SYNCFRAME_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_VIDEO_FRAME_S stFrame;
+-    HI_U32 u32FenceFd;
+-}WIN_SYNCFRAME_S;
+-
+-typedef struct hiWIN_UNLOAD_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_U32 u32Times;
+-}WIN_UNLOAD_S;
+-
+-typedef struct hiWIN_CAPTURE_DRIVER_SUPPLY_ADDR_S
+-{
+-    HI_U32        startPhyAddr;
+-    HI_U32        length;
+-}WIN_CAPTURE_DRIVER_SUPPLY_ADDR_S;
+-
+-typedef struct hiVO_WIN_CAPTURE_FREE_S
+-{
+-    HI_HANDLE                        hWindow;
+-    HI_DRV_VIDEO_FRAME_S             CapPicture;
+-    WIN_CAPTURE_DRIVER_SUPPLY_ADDR_S driver_supply_addr;
+-}WIN_CAPTURE_S;
+-
+-typedef struct hiWIN_PAUSE_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_BOOL   bEnable;
+-}WIN_PAUSE_S;
+-
+-typedef struct hiWIN_STEP_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_BOOL   bStep;
+-}WIN_STEP_MODE_S;
+-
+-typedef struct hiWIN_STATE_S
+-{
+-    HI_HANDLE hWin[HI_DRV_DISPLAY_BUTT][DEF_MAX_WIN_NUM_ON_SINGLE_DISP];
+-    HI_HANDLE hVirtualWin[DEF_MAX_WIN_NUM_ON_VIRTUAL_DISP];
+-    HI_HANDLE hCapture[HI_DRV_DISPLAY_BUTT][DEF_MAX_WIN_NUM_ON_SINGLE_DISP];
+-}WIN_STATE_S;
+-
+-typedef struct hiWIN_ROTATION_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_ROT_ANGLE_E enRotation;
+-}WIN_ROTATION_S;
+-typedef struct hiWIN_FLIP_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_BOOL bVertFlip;
+-    HI_BOOL bHoriFlip;
+-}WIN_FLIP_S;
+-typedef struct hiWIN_MODE_S
+-{
+-    HI_HANDLE               hWindow;
+-    HI_DRV_WINDOW_MODE_E    enWinMode;
+-}WIN_MODE_S;
+-/*
+-typedef struct hiWIN_GLOBAL_STATE_S
+-{
+-    HI_U32 bDisp0Num;
+-    HI_U32 bDisp1Num;
+-    HI_U32 WinCount[HI_DRV_DISPLAY_BUTT];
+-}WIN_GLOBAL_STATE_S;
+-*/
+-
+-typedef struct hiWIN_BUF_POOL_S
+-{
+-    HI_HANDLE hwin;
+-    HI_DRV_VIDEO_BUFFER_POOL_S stBufPool;
+-}WIN_BUF_POOL_S;
+-
+-typedef struct hiWIN_SET_QUICK_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_BOOL   bQuickEnable;
+-}WIN_SET_QUICK_S;
+-
+-typedef struct hiWIN_GET_HANDLE_S
+-{
+-    HI_DRV_DISPLAY_E enDisp;
+-    HI_U32 u32WinNumber;
+-    HI_HANDLE ahWinHandle[DEF_MAX_WIN_NUM_ON_SINGLE_DISP];
+-}WIN_GET_HANDLE_S;
+-
+-typedef enum hiWIN_ATTACH_TYPE_E
+-{
+-    ATTACH_TYPE_SRC = 0,
+-    ATTACH_TYPE_SINK,
+-    ATTACH_TYPE_BUTT
+-}WIN_ATTACH_TYPE_E;
+-
+-typedef struct hiWIN_ATTACH_S
+-{
+-    WIN_ATTACH_TYPE_E enType;
+-    HI_HANDLE hWindow;
+-    HI_HANDLE hMutual;
+-}WIN_ATTACH_S;
+-
+-typedef struct hiWIN_INTF_S
+-{
+-    HI_VOID* pfAcqFrame;
+-    HI_VOID* pfRlsFrame;
+-    HI_VOID* pfSetWinAttr;
+-}WIN_INTF_S;
+-
+-typedef struct hiWIN_FROST_MODE_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_WINDOW_FROST_E eFrostMode;
+-}WIN_FROST_MODE_S;
+-
+-typedef struct hiWIN_ALPHA_S
+-{
+-    HI_HANDLE hWindow;
+-    HI_DRV_DISPLAY_E enDisp;
+-    HI_U32 u32Alpha;
+-}WIN_ALPHA_S;
+-
+-typedef enum hiIOC_VO_E
+-{
+-    IOC_WIN_CREATE = 0,
+-    IOC_WIN_DESTROY,
+-
+-    IOC_WIN_SET_ENABLE,
+-    IOC_WIN_GET_ENABLE,
+-
+-    IOC_WIN_SET_ATTR,
+-    IOC_WIN_GET_ATTR,
+-
+-    IOC_WIN_SET_SOURCE,
+-    IOC_WIN_GET_SOURCE,
+-
+-    IOC_WIN_GET_INFO,
+-    IOC_WIN_GET_PLAY_INFO,
+-
+-    IOC_WIN_QU_FRAME,
+-    IOC_WIN_QUDOLBY_FRAME,
+-    IOC_WIN_QUSYNC_FRAME,
+-    IOC_WIN_QU_ULSFRAME,
+-    IOC_WIN_DQ_FRAME,
+-
+-    IOC_WIN_FREEZE,
+-    IOC_WIN_GET_FREEZE_STATUS,
+-    IOC_WIN_RESET,
+-    IOC_WIN_PAUSE,
+-    IOC_WIN_SET_QUICK,
+-    IOC_WIN_GET_QUICK,
+-
+-    IOC_WIN_SET_ZORDER,
+-    IOC_WIN_GET_ORDER,
+-
+-    IOC_WIN_CAP_FRAME,
+-    IOC_WIN_CAP_REL_FRAME,
+-
+-    IOC_WIN_SEND_FRAME,
+-
+-    IOC_WIN_STEP_MODE,
+-    IOC_WIN_STEP_PLAY,
+-
+-    IOC_WIN_VIR_ACQUIRE,
+-    IOC_WIN_VIR_RELEASE,
+-    IOC_WIN_VIR_EXTERNBUF,
+-
+-    IOC_WIN_SUSPEND,
+-    IOC_WIN_RESUME,
+-
+-    IOC_WIN_ATTACH,
+-    IOC_WIN_DETACH,
+-
+-    IOC_WIN_GET_LATESTFRAME_INFO,
+-    IOC_VO_WIN_CAPTURE_START,
+-    IOC_VO_WIN_CAPTURE_RELEASE,
+-    IOC_VO_WIN_CAPTURE_FREE,
+-    IOC_WIN_SET_ROTATION,
+-    IOC_WIN_GET_ROTATION,
+-    IOC_WIN_SET_FLIP,
+-    IOC_WIN_GET_FLIP,
+-    IOC_WIN_SET_MODE,
+-    IOC_WIN_GET_OUT_TYPE_AND_ENGINE,
+-    IOC_WIN_GET_DISP_OUT_TYPE_AND_GFX_STATE,
+-    IOC_WIN_GET_UNLOAD,
+-    IOC_WIN_DEBUG_GET_HANDLE,
+-
+-    IOC_WIN_CLOSE_HDR_PATH,
+-    IOC_WIN_SET_DOLBY_LIB_STATUS,
+-    IOC_WIN_DEBUG,
+-    IOC_WIN_SET_FROST_MODE,
+-    IOC_WIN_GET_FROST_MODE,
+-
+-    IOC_WIN_SET_ALPHA,
+-    IOC_WIN_GET_ALPHA,
+-    IOC_WIN_RESET_FIRST_FRAME_STATUS,
+-
+-    IOC_WIN_BUTT
+-} IOC_WIN_E;
+-
+-
+-#define CMD_WIN_CREATE             _IOWR(HI_ID_VO, IOC_WIN_CREATE, WIN_CREATE_S)
+-#define CMD_WIN_DESTROY            _IOW(HI_ID_VO, IOC_WIN_DESTROY, HI_HANDLE)
+-
+-#define CMD_WIN_SET_ENABLE         _IOW(HI_ID_VO, IOC_WIN_SET_ENABLE, WIN_ENABLE_S)
+-#define CMD_WIN_GET_ENABLE         _IOWR(HI_ID_VO, IOC_WIN_GET_ENABLE, WIN_ENABLE_S)
+-
+-#define CMD_WIN_SET_ATTR           _IOW(HI_ID_VO, IOC_WIN_SET_ATTR, WIN_CREATE_S)
+-#define CMD_WIN_GET_ATTR           _IOWR(HI_ID_VO, IOC_WIN_GET_ATTR, WIN_CREATE_S)
+-
+-#define CMD_WIN_SET_SOURCE         _IOW(HI_ID_VO, IOC_WIN_SET_SOURCE, WIN_SOURCE_S)
+-#define CMD_WIN_GET_SOURCE         _IOW(HI_ID_VO, IOC_WIN_GET_SOURCE, WIN_SOURCE_S)
+-
+-#define CMD_WIN_GET_INFO          _IOWR(HI_ID_VO, IOC_WIN_GET_INFO, WIN_PRIV_INFO_S)
+-#define CMD_WIN_GET_PLAY_INFO      _IOWR(HI_ID_VO, IOC_WIN_GET_PLAY_INFO, WIN_PLAY_INFO_S)
+-
+-#define CMD_WIN_QU_FRAME           _IOW(HI_ID_VO, IOC_WIN_QU_FRAME, WIN_XDR_FRAME_S)
+-#define CMD_WIN_QUDOLBY_FRAME      _IOW(HI_ID_VO, IOC_WIN_QUDOLBY_FRAME, WIN_XDR_FRAME_S)
+-
+-#define CMD_WIN_QUSYNC_FRAME       _IOWR(HI_ID_VO, IOC_WIN_QUSYNC_FRAME, WIN_SYNCFRAME_S)
+-#define CMD_WIN_QU_ULSFRAME        _IOW(HI_ID_VO, IOC_WIN_QU_ULSFRAME, WIN_FRAME_S)
+-#define CMD_WIN_DQ_FRAME           _IOWR(HI_ID_VO, IOC_WIN_DQ_FRAME, WIN_FRAME_S)
+-
+-#define CMD_WIN_FREEZE             _IOW(HI_ID_VO,  IOC_WIN_FREEZE, WIN_FREEZE_S)
+-#define CMD_WIN_GET_FREEZE_STATUS  _IOWR(HI_ID_VO, IOC_WIN_GET_FREEZE_STATUS, WIN_FREEZE_S)
+-#define CMD_WIN_RESET              _IOW(HI_ID_VO, IOC_WIN_RESET, WIN_RESET_S)
+-#define CMD_WIN_PAUSE              _IOW(HI_ID_VO, IOC_WIN_PAUSE, WIN_PAUSE_S)
+-
+-#define CMD_WIN_SET_QUICK          _IOW(HI_ID_VO,IOC_WIN_SET_QUICK,WIN_SET_QUICK_S)
+-#define CMD_WIN_GET_QUICK          _IOWR(HI_ID_VO,IOC_WIN_GET_QUICK,WIN_SET_QUICK_S)
+-#define CMD_WIN_SET_ZORDER         _IOW(HI_ID_VO, IOC_WIN_SET_ZORDER, WIN_ZORDER_S)
+-#define CMD_WIN_GET_ORDER          _IOWR(HI_ID_VO, IOC_WIN_GET_ORDER, WIN_ORDER_S)
+-
+-
+-#define CMD_WIN_CAPTURE            _IOWR(HI_ID_VO, IOC_WIN_CAP_FRAME, WIN_CAPTURE_S)
+-#define CMD_WIN_CAP_RELEASE        _IOWR(HI_ID_VO, IOC_WIN_CAP_REL_FRAME, WIN_CAPTURE_S)
+-
+-#define CMD_WIN_SEND_FRAME         _IOW(HI_ID_VO, IOC_WIN_SEND_FRAME, WIN_FRAME_S)
+-
+-#define CMD_WIN_STEP_MODE          _IOW(HI_ID_VO, IOC_WIN_STEP_MODE, WIN_STEP_MODE_S)
+-#define CMD_WIN_STEP_PLAY          _IOW(HI_ID_VO, IOC_WIN_STEP_PLAY, HI_HANDLE)
+-
+-#define CMD_WIN_VIR_ACQUIRE        _IOWR(HI_ID_VO,IOC_WIN_VIR_ACQUIRE,WIN_FRAME_S)
+-#define CMD_WIN_VIR_RELEASE        _IOWR(HI_ID_VO,IOC_WIN_VIR_RELEASE,WIN_FRAME_S)
+-#define CMD_WIN_VIR_EXTERNBUF      _IOW(HI_ID_VO,IOC_WIN_VIR_EXTERNBUF,WIN_BUF_POOL_S)
+-
+-
+-#define CMD_WIN_SUSPEND            _IOW(HI_ID_VO,IOC_WIN_SUSPEND, HI_U32)
+-#define CMD_WIN_RESUM              _IOW(HI_ID_VO,IOC_WIN_RESUME, HI_U32)
+-
+-#define CMD_WIN_GET_HANDLE         _IOWR(HI_ID_VO,IOC_WIN_DEBUG_GET_HANDLE, WIN_GET_HANDLE_S)
+-
+-#define CMD_WIN_ATTACH             _IOWR(HI_ID_VO,IOC_WIN_ATTACH, WIN_ATTACH_S)
+-#define CMD_WIN_DETACH             _IOWR(HI_ID_VO,IOC_WIN_DETACH, WIN_ATTACH_S)
+-
+-#define CMD_WIN_GET_LATESTFRAME_INFO _IOWR(HI_ID_VO,IOC_WIN_GET_LATESTFRAME_INFO, WIN_FRAME_S)
+-#define CMD_VO_WIN_CAPTURE_START     _IOWR(HI_ID_VO,IOC_VO_WIN_CAPTURE_START, WIN_CAPTURE_S)
+-#define CMD_VO_WIN_CAPTURE_RELEASE   _IOWR(HI_ID_VO,IOC_VO_WIN_CAPTURE_RELEASE, WIN_CAPTURE_S)
+-#define CMD_VO_WIN_CAPTURE_FREE      _IOWR(HI_ID_VO,IOC_VO_WIN_CAPTURE_FREE, WIN_CAPTURE_S)
+-
+-#define CMD_WIN_SET_ROTATION      _IOWR(HI_ID_VO,IOC_WIN_SET_ROTATION, WIN_ROTATION_S)
+-#define CMD_WIN_GET_ROTATION      _IOWR(HI_ID_VO,IOC_WIN_GET_ROTATION, WIN_ROTATION_S)
+-#define CMD_WIN_SET_FLIP      _IOWR(HI_ID_VO,IOC_WIN_SET_FLIP, WIN_FLIP_S)
+-#define CMD_WIN_GET_FLIP      _IOWR(HI_ID_VO,IOC_WIN_GET_FLIP, WIN_FLIP_S)
+-
+-#define CMD_WIN_SET_MODE               _IOWR(HI_ID_VO,IOC_WIN_SET_MODE, WIN_MODE_S)
+-#define CMD_WIN_GET_OUT_TYPE_AND_ENGINE  _IOWR(HI_ID_VO,IOC_WIN_GET_OUT_TYPE_AND_ENGINE, WIN_OUT_TYPE_AND_ENGINE_S)
+-#define CMD_WIN_GET_DISP_OUT_TYPE_AND_GFX_STATE   _IOWR(HI_ID_VO,IOC_WIN_GET_DISP_OUT_TYPE_AND_GFX_STATE, WIN_DISP_OUT_TYPE_AND_GFX_STATE_S)
+-#define CMD_WIN_GET_UNLOAD _IOWR(HI_ID_VO,IOC_WIN_GET_UNLOAD, WIN_UNLOAD_S)
+-
+-#define CMD_WIN_CLOSE_HDR_PATH _IOWR(HI_ID_VO,IOC_WIN_CLOSE_HDR_PATH, WIN_ENABLE_S)
+-#define CMD_WIN_SET_DOLBY_LIB_STATUS  _IOWR(HI_ID_VO,IOC_WIN_SET_DOLBY_LIB_STATUS, WIN_DOLBY_LIB_INFO_S)
+-#define CMD_WIN_DEBUG _IOWR(HI_ID_VO,IOC_WIN_DEBUG, WIN_DEBUG_CMD_AND_ARGS_S)
+-
+-#define CMD_WIN_SET_FROST_MODE _IOWR(HI_ID_VO,IOC_WIN_SET_FROST_MODE, WIN_FROST_MODE_S)
+-#define CMD_WIN_GET_FROST_MODE _IOWR(HI_ID_VO,IOC_WIN_GET_FROST_MODE, WIN_FROST_MODE_S)
+-
+-#define CMD_WIN_SET_ALPHA _IOWR(HI_ID_VO,IOC_WIN_SET_ALPHA, WIN_ALPHA_S)
+-#define CMD_WIN_GET_ALPHA _IOWR(HI_ID_VO,IOC_WIN_GET_ALPHA, WIN_ALPHA_S)
+-
+-#define CMD_WIN_RESET_FIRST_FRAME_STATUS _IOWR(HI_ID_VO,IOC_WIN_RESET_FIRST_FRAME_STATUS, WIN_ALPHA_S)
+-
+-#ifdef __cplusplus
+-#if __cplusplus
+-}
+-#endif
+-#endif /* __cplusplus */
+-
+-
+-#endif  /* __DRV_WIN_IOCTL_H__ */
+-
++/******************************************************************************
++  Copyright (C), 2001-2011, Hisilicon Tech. Co., Ltd.
++******************************************************************************
++File Name     : drv_win_ioctl.h
++Version       : Initial Draft
++Author        : Hisilicon multimedia software group
++Created       : 2012/12/30
++Last Modified :
++Description   :
++Function List :
++History       :
++******************************************************************************/
++#ifndef __DRV_WIN_IOCTL_H__
++#define __DRV_WIN_IOCTL_H__
++
++#ifdef __cplusplus
++#if __cplusplus
++extern "C"{
++#endif
++#endif
++
++#include "hi_type.h"
++#include "hi_drv_video.h"
++#include "hi_drv_disp.h"
++#include "hi_drv_win.h"
++
++
++typedef struct hiWIN_CREATE_S
++{
++    HI_HANDLE          hWindow;
++    HI_DRV_WIN_ATTR_S  WinAttr;
++    HI_BOOL            bVirtScreen;
++    HI_BOOL            bMCE;
++}WIN_CREATE_S;
++
++typedef struct hiWIN_ENABLE_S
++{
++    HI_HANDLE hWindow;
++    HI_BOOL   bEnable;
++}WIN_ENABLE_S;
++
++
++typedef struct hiWIN_SOURCE_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_WIN_SRC_HANDLE_S stSrc;
++}WIN_SOURCE_S;
++
++
++typedef struct hiWIN_PRIV_INFO_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_WIN_INFO_S stPrivInfo;
++}WIN_PRIV_INFO_S;
++
++typedef struct hiWIN_PLAY_INFO_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_WIN_PLAY_INFO_S stPlayInfo;
++}WIN_PLAY_INFO_S;
++
++typedef struct hiWIN_ZORDER_S
++{
++    HI_HANDLE            hWindow;
++    HI_DRV_DISP_ZORDER_E eZFlag;
++}WIN_ZORDER_S;
++
++typedef struct hiWIN_ORDER_S
++{
++    HI_HANDLE    hWindow;
++    HI_U32       Order;
++}WIN_ORDER_S;
++
++typedef struct hiWIN_FREEZE_S
++{
++    HI_HANDLE hWindow;
++    HI_BOOL   bEnable;
++    HI_DRV_WIN_SWITCH_E eMode;
++}WIN_FREEZE_S;
++
++typedef struct hiWIN_RESET_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_WIN_SWITCH_E eMode;
++}WIN_RESET_S;
++
++typedef struct hiWIN_FRAME_S
++{
++    HI_HANDLE                   hWindow;
++    HI_DRV_VIDEO_FRAME_S        stFrame;
++    HI_DRV_DOLBY_META_INFO_S    stDolbyHdrCfg;
++}WIN_FRAME_S;
++
++typedef struct hiWIN_OUT_TYPE_AND_ENGINE_S
++{
++    HI_HANDLE                  hWindow;
++    HI_DRV_VIDEO_FRAME_TYPE_E  enFrmType;
++    HI_DRV_DISP_OUT_TYPE_E     enDispOutType;
++    HI_DRV_DISP_XDR_ENGINE_E   enXdrEngine;
++}WIN_OUT_TYPE_AND_ENGINE_S;
++
++typedef struct hiWIN_DISP_OUT_TYPE_AND_GFX_STATE_S
++{
++    HI_HANDLE                  hWindow;
++    HI_DRV_DISP_OUT_TYPE_E     enDispOutType;
++    HI_BOOL                    bNeedProcessGfx;
++}WIN_DISP_OUT_TYPE_AND_GFX_STATE_S;
++
++
++typedef struct hiWIN_DOLBYFRAME_S
++{
++    HI_HANDLE                  hWindow;
++    HI_DRV_VIDEO_FRAME_S       stBLFrm;
++    HI_DRV_VIDEO_FRAME_S       stELFrm;
++    HI_BOOL                    bELValid;
++    HI_DRV_DOLBY_META_INFO_S   stDolbyInfo;
++}WIN_DOLBYFRAME_S;
++
++typedef struct hiWIN_XDR_FRAME_S
++{
++    HI_HANDLE                  hWindow;
++    HI_BOOL                    bEnhanceValid; /* dolby frame may has enhance frame(EL). */
++    HI_DRV_VIDEO_FRAME_S       stBaseFrm;     /* SDR/HDR10/HLG/SLF/BL frame.*/
++    HI_DRV_VIDEO_FRAME_S       stEnhanceFrm;  /* EL frame.*/
++    HI_DRV_DOLBY_META_INFO_S   stDolbyInfo;
++    HI_DRV_DISP_OUT_TYPE_E     enDispOutType;
++    HI_DRV_DISP_XDR_ENGINE_E   enXdrEngine;
++    HI_U32                     u32BoxReserved[2];  /* box kernel (UNF 3.3.4): 8 bytes larger */
++}WIN_XDR_FRAME_S;
++
++typedef struct hiWIN_SYNCFRAME_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_VIDEO_FRAME_S stFrame;
++    HI_U32 u32FenceFd;
++}WIN_SYNCFRAME_S;
++
++typedef struct hiWIN_UNLOAD_S
++{
++    HI_HANDLE hWindow;
++    HI_U32 u32Times;
++}WIN_UNLOAD_S;
++
++typedef struct hiWIN_CAPTURE_DRIVER_SUPPLY_ADDR_S
++{
++    HI_U32        startPhyAddr;
++    HI_U32        length;
++}WIN_CAPTURE_DRIVER_SUPPLY_ADDR_S;
++
++typedef struct hiVO_WIN_CAPTURE_FREE_S
++{
++    HI_HANDLE                        hWindow;
++    HI_DRV_VIDEO_FRAME_S             CapPicture;
++    WIN_CAPTURE_DRIVER_SUPPLY_ADDR_S driver_supply_addr;
++}WIN_CAPTURE_S;
++
++typedef struct hiWIN_PAUSE_S
++{
++    HI_HANDLE hWindow;
++    HI_BOOL   bEnable;
++}WIN_PAUSE_S;
++
++typedef struct hiWIN_STEP_S
++{
++    HI_HANDLE hWindow;
++    HI_BOOL   bStep;
++}WIN_STEP_MODE_S;
++
++typedef struct hiWIN_STATE_S
++{
++    HI_HANDLE hWin[HI_DRV_DISPLAY_BUTT][DEF_MAX_WIN_NUM_ON_SINGLE_DISP];
++    HI_HANDLE hVirtualWin[DEF_MAX_WIN_NUM_ON_VIRTUAL_DISP];
++    HI_HANDLE hCapture[HI_DRV_DISPLAY_BUTT][DEF_MAX_WIN_NUM_ON_SINGLE_DISP];
++}WIN_STATE_S;
++
++typedef struct hiWIN_ROTATION_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_ROT_ANGLE_E enRotation;
++}WIN_ROTATION_S;
++typedef struct hiWIN_FLIP_S
++{
++    HI_HANDLE hWindow;
++    HI_BOOL bVertFlip;
++    HI_BOOL bHoriFlip;
++}WIN_FLIP_S;
++typedef struct hiWIN_MODE_S
++{
++    HI_HANDLE               hWindow;
++    HI_DRV_WINDOW_MODE_E    enWinMode;
++}WIN_MODE_S;
++/*
++typedef struct hiWIN_GLOBAL_STATE_S
++{
++    HI_U32 bDisp0Num;
++    HI_U32 bDisp1Num;
++    HI_U32 WinCount[HI_DRV_DISPLAY_BUTT];
++}WIN_GLOBAL_STATE_S;
++*/
++
++typedef struct hiWIN_BUF_POOL_S
++{
++    HI_HANDLE hwin;
++    HI_DRV_VIDEO_BUFFER_POOL_S stBufPool;
++}WIN_BUF_POOL_S;
++
++typedef struct hiWIN_SET_QUICK_S
++{
++    HI_HANDLE hWindow;
++    HI_BOOL   bQuickEnable;
++}WIN_SET_QUICK_S;
++
++typedef struct hiWIN_GET_HANDLE_S
++{
++    HI_DRV_DISPLAY_E enDisp;
++    HI_U32 u32WinNumber;
++    HI_HANDLE ahWinHandle[DEF_MAX_WIN_NUM_ON_SINGLE_DISP];
++}WIN_GET_HANDLE_S;
++
++typedef enum hiWIN_ATTACH_TYPE_E
++{
++    ATTACH_TYPE_SRC = 0,
++    ATTACH_TYPE_SINK,
++    ATTACH_TYPE_BUTT
++}WIN_ATTACH_TYPE_E;
++
++typedef struct hiWIN_ATTACH_S
++{
++    WIN_ATTACH_TYPE_E enType;
++    HI_HANDLE hWindow;
++    HI_HANDLE hMutual;
++}WIN_ATTACH_S;
++
++typedef struct hiWIN_INTF_S
++{
++    HI_VOID* pfAcqFrame;
++    HI_VOID* pfRlsFrame;
++    HI_VOID* pfSetWinAttr;
++}WIN_INTF_S;
++
++typedef struct hiWIN_FROST_MODE_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_WINDOW_FROST_E eFrostMode;
++}WIN_FROST_MODE_S;
++
++typedef struct hiWIN_ALPHA_S
++{
++    HI_HANDLE hWindow;
++    HI_DRV_DISPLAY_E enDisp;
++    HI_U32 u32Alpha;
++}WIN_ALPHA_S;
++
++typedef enum hiIOC_VO_E
++{
++    IOC_WIN_CREATE = 0,
++    IOC_WIN_DESTROY,
++
++    IOC_WIN_SET_ENABLE,
++    IOC_WIN_GET_ENABLE,
++
++    IOC_WIN_SET_ATTR,
++    IOC_WIN_GET_ATTR,
++
++    IOC_WIN_SET_SOURCE,
++    IOC_WIN_GET_SOURCE,
++
++    IOC_WIN_GET_INFO,
++    IOC_WIN_GET_PLAY_INFO,
++
++    IOC_WIN_QU_FRAME,
++    IOC_WIN_QUDOLBY_FRAME,
++    IOC_WIN_QUSYNC_FRAME,
++    IOC_WIN_QU_ULSFRAME,
++    IOC_WIN_DQ_FRAME,
++
++    IOC_WIN_FREEZE,
++    IOC_WIN_GET_FREEZE_STATUS,
++    IOC_WIN_RESET,
++    IOC_WIN_PAUSE,
++    IOC_WIN_SET_QUICK,
++    IOC_WIN_GET_QUICK,
++
++    IOC_WIN_SET_ZORDER,
++    IOC_WIN_GET_ORDER,
++
++    IOC_WIN_CAP_FRAME,
++    IOC_WIN_CAP_REL_FRAME,
++
++    IOC_WIN_SEND_FRAME,
++
++    IOC_WIN_STEP_MODE,
++    IOC_WIN_STEP_PLAY,
++
++    IOC_WIN_VIR_ACQUIRE,
++    IOC_WIN_VIR_RELEASE,
++    IOC_WIN_VIR_EXTERNBUF,
++
++    IOC_WIN_SUSPEND,
++    IOC_WIN_RESUME,
++
++    IOC_WIN_ATTACH,
++    IOC_WIN_DETACH,
++
++    IOC_WIN_GET_LATESTFRAME_INFO,
++    IOC_VO_WIN_CAPTURE_START,
++    IOC_VO_WIN_CAPTURE_RELEASE,
++    IOC_VO_WIN_CAPTURE_FREE,
++    IOC_WIN_SET_ROTATION,
++    IOC_WIN_GET_ROTATION,
++    IOC_WIN_SET_FLIP,
++    IOC_WIN_GET_FLIP,
++    IOC_WIN_SET_MODE,
++    IOC_WIN_GET_OUT_TYPE_AND_ENGINE,
++    IOC_WIN_GET_DISP_OUT_TYPE_AND_GFX_STATE,
++    IOC_WIN_GET_UNLOAD,
++    IOC_WIN_DEBUG_GET_HANDLE,
++
++    IOC_WIN_CLOSE_HDR_PATH,
++    IOC_WIN_SET_DOLBY_LIB_STATUS,
++    IOC_WIN_DEBUG,
++    IOC_WIN_SET_FROST_MODE,
++    IOC_WIN_GET_FROST_MODE,
++
++    IOC_WIN_SET_ALPHA,
++    IOC_WIN_GET_ALPHA,
++    IOC_WIN_RESET_FIRST_FRAME_STATUS,
++
++    IOC_WIN_BUTT
++} IOC_WIN_E;
++
++
++#define CMD_WIN_CREATE             _IOWR(HI_ID_VO, IOC_WIN_CREATE, WIN_CREATE_S)
++#define CMD_WIN_DESTROY            _IOW(HI_ID_VO, IOC_WIN_DESTROY, HI_HANDLE)
++
++#define CMD_WIN_SET_ENABLE         _IOW(HI_ID_VO, IOC_WIN_SET_ENABLE, WIN_ENABLE_S)
++#define CMD_WIN_GET_ENABLE         _IOWR(HI_ID_VO, IOC_WIN_GET_ENABLE, WIN_ENABLE_S)
++
++#define CMD_WIN_SET_ATTR           _IOW(HI_ID_VO, IOC_WIN_SET_ATTR, WIN_CREATE_S)
++#define CMD_WIN_GET_ATTR           _IOWR(HI_ID_VO, IOC_WIN_GET_ATTR, WIN_CREATE_S)
++
++#define CMD_WIN_SET_SOURCE         _IOW(HI_ID_VO, IOC_WIN_SET_SOURCE, WIN_SOURCE_S)
++#define CMD_WIN_GET_SOURCE         _IOW(HI_ID_VO, IOC_WIN_GET_SOURCE, WIN_SOURCE_S)
++
++#define CMD_WIN_GET_INFO          _IOWR(HI_ID_VO, IOC_WIN_GET_INFO, WIN_PRIV_INFO_S)
++#define CMD_WIN_GET_PLAY_INFO      _IOWR(HI_ID_VO, IOC_WIN_GET_PLAY_INFO, WIN_PLAY_INFO_S)
++
++#define CMD_WIN_QU_FRAME           _IOW(HI_ID_VO, IOC_WIN_QU_FRAME, WIN_XDR_FRAME_S)
++#define CMD_WIN_QUDOLBY_FRAME      _IOW(HI_ID_VO, IOC_WIN_QUDOLBY_FRAME, WIN_XDR_FRAME_S)
++
++#define CMD_WIN_QUSYNC_FRAME       _IOWR(HI_ID_VO, IOC_WIN_QUSYNC_FRAME, WIN_SYNCFRAME_S)
++#define CMD_WIN_QU_ULSFRAME        _IOW(HI_ID_VO, IOC_WIN_QU_ULSFRAME, WIN_FRAME_S)
++#define CMD_WIN_DQ_FRAME           _IOWR(HI_ID_VO, IOC_WIN_DQ_FRAME, WIN_FRAME_S)
++
++#define CMD_WIN_FREEZE             _IOW(HI_ID_VO,  IOC_WIN_FREEZE, WIN_FREEZE_S)
++#define CMD_WIN_GET_FREEZE_STATUS  _IOWR(HI_ID_VO, IOC_WIN_GET_FREEZE_STATUS, WIN_FREEZE_S)
++#define CMD_WIN_RESET              _IOW(HI_ID_VO, IOC_WIN_RESET, WIN_RESET_S)
++#define CMD_WIN_PAUSE              _IOW(HI_ID_VO, IOC_WIN_PAUSE, WIN_PAUSE_S)
++
++#define CMD_WIN_SET_QUICK          _IOW(HI_ID_VO,IOC_WIN_SET_QUICK,WIN_SET_QUICK_S)
++#define CMD_WIN_GET_QUICK          _IOWR(HI_ID_VO,IOC_WIN_GET_QUICK,WIN_SET_QUICK_S)
++#define CMD_WIN_SET_ZORDER         _IOW(HI_ID_VO, IOC_WIN_SET_ZORDER, WIN_ZORDER_S)
++#define CMD_WIN_GET_ORDER          _IOWR(HI_ID_VO, IOC_WIN_GET_ORDER, WIN_ORDER_S)
++
++
++#define CMD_WIN_CAPTURE            _IOWR(HI_ID_VO, IOC_WIN_CAP_FRAME, WIN_CAPTURE_S)
++#define CMD_WIN_CAP_RELEASE        _IOWR(HI_ID_VO, IOC_WIN_CAP_REL_FRAME, WIN_CAPTURE_S)
++
++#define CMD_WIN_SEND_FRAME         _IOW(HI_ID_VO, IOC_WIN_SEND_FRAME, WIN_FRAME_S)
++
++#define CMD_WIN_STEP_MODE          _IOW(HI_ID_VO, IOC_WIN_STEP_MODE, WIN_STEP_MODE_S)
++#define CMD_WIN_STEP_PLAY          _IOW(HI_ID_VO, IOC_WIN_STEP_PLAY, HI_HANDLE)
++
++#define CMD_WIN_VIR_ACQUIRE        _IOWR(HI_ID_VO,IOC_WIN_VIR_ACQUIRE,WIN_FRAME_S)
++#define CMD_WIN_VIR_RELEASE        _IOWR(HI_ID_VO,IOC_WIN_VIR_RELEASE,WIN_FRAME_S)
++#define CMD_WIN_VIR_EXTERNBUF      _IOW(HI_ID_VO,IOC_WIN_VIR_EXTERNBUF,WIN_BUF_POOL_S)
++
++
++#define CMD_WIN_SUSPEND            _IOW(HI_ID_VO,IOC_WIN_SUSPEND, HI_U32)
++#define CMD_WIN_RESUM              _IOW(HI_ID_VO,IOC_WIN_RESUME, HI_U32)
++
++#define CMD_WIN_GET_HANDLE         _IOWR(HI_ID_VO,IOC_WIN_DEBUG_GET_HANDLE, WIN_GET_HANDLE_S)
++
++#define CMD_WIN_ATTACH             _IOWR(HI_ID_VO,IOC_WIN_ATTACH, WIN_ATTACH_S)
++#define CMD_WIN_DETACH             _IOWR(HI_ID_VO,IOC_WIN_DETACH, WIN_ATTACH_S)
++
++#define CMD_WIN_GET_LATESTFRAME_INFO _IOWR(HI_ID_VO,IOC_WIN_GET_LATESTFRAME_INFO, WIN_FRAME_S)
++#define CMD_VO_WIN_CAPTURE_START     _IOWR(HI_ID_VO,IOC_VO_WIN_CAPTURE_START, WIN_CAPTURE_S)
++#define CMD_VO_WIN_CAPTURE_RELEASE   _IOWR(HI_ID_VO,IOC_VO_WIN_CAPTURE_RELEASE, WIN_CAPTURE_S)
++#define CMD_VO_WIN_CAPTURE_FREE      _IOWR(HI_ID_VO,IOC_VO_WIN_CAPTURE_FREE, WIN_CAPTURE_S)
++
++#define CMD_WIN_SET_ROTATION      _IOWR(HI_ID_VO,IOC_WIN_SET_ROTATION, WIN_ROTATION_S)
++#define CMD_WIN_GET_ROTATION      _IOWR(HI_ID_VO,IOC_WIN_GET_ROTATION, WIN_ROTATION_S)
++#define CMD_WIN_SET_FLIP      _IOWR(HI_ID_VO,IOC_WIN_SET_FLIP, WIN_FLIP_S)
++#define CMD_WIN_GET_FLIP      _IOWR(HI_ID_VO,IOC_WIN_GET_FLIP, WIN_FLIP_S)
++
++#define CMD_WIN_SET_MODE               _IOWR(HI_ID_VO,IOC_WIN_SET_MODE, WIN_MODE_S)
++#define CMD_WIN_GET_OUT_TYPE_AND_ENGINE  _IOWR(HI_ID_VO,IOC_WIN_GET_OUT_TYPE_AND_ENGINE, WIN_OUT_TYPE_AND_ENGINE_S)
++#define CMD_WIN_GET_DISP_OUT_TYPE_AND_GFX_STATE   _IOWR(HI_ID_VO,IOC_WIN_GET_DISP_OUT_TYPE_AND_GFX_STATE, WIN_DISP_OUT_TYPE_AND_GFX_STATE_S)
++#define CMD_WIN_GET_UNLOAD _IOWR(HI_ID_VO,IOC_WIN_GET_UNLOAD, WIN_UNLOAD_S)
++
++#define CMD_WIN_CLOSE_HDR_PATH _IOWR(HI_ID_VO,IOC_WIN_CLOSE_HDR_PATH, WIN_ENABLE_S)
++#define CMD_WIN_SET_DOLBY_LIB_STATUS  _IOWR(HI_ID_VO,IOC_WIN_SET_DOLBY_LIB_STATUS, WIN_DOLBY_LIB_INFO_S)
++#define CMD_WIN_DEBUG _IOWR(HI_ID_VO,IOC_WIN_DEBUG, WIN_DEBUG_CMD_AND_ARGS_S)
++
++#define CMD_WIN_SET_FROST_MODE _IOWR(HI_ID_VO,IOC_WIN_SET_FROST_MODE, WIN_FROST_MODE_S)
++#define CMD_WIN_GET_FROST_MODE _IOWR(HI_ID_VO,IOC_WIN_GET_FROST_MODE, WIN_FROST_MODE_S)
++
++#define CMD_WIN_SET_ALPHA _IOWR(HI_ID_VO,IOC_WIN_SET_ALPHA, WIN_ALPHA_S)
++#define CMD_WIN_GET_ALPHA _IOWR(HI_ID_VO,IOC_WIN_GET_ALPHA, WIN_ALPHA_S)
++
++#define CMD_WIN_RESET_FIRST_FRAME_STATUS _IOWR(HI_ID_VO,IOC_WIN_RESET_FIRST_FRAME_STATUS, WIN_ALPHA_S)
++
++#ifdef __cplusplus
++#if __cplusplus
++}
++#endif
++#endif /* __cplusplus */
++
++
++#endif  /* __DRV_WIN_IOCTL_H__ */
++

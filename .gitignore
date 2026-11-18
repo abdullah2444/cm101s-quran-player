@@ -1,0 +1,7 @@
+*.pyc
+__pycache__/
+*.o
+*.so
+*.orig
+.DS_Store
+prayer-location.json

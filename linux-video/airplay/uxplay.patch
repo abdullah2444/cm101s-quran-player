@@ -1,0 +1,36 @@
+--- a/lib/http_handlers.h
++++ b/lib/http_handlers.h
+@@ -628,7 +628,7 @@
+         fcup_response_data = plist_get_data_ptr(req_params_fcup_response_data_node, &uint_val);
+ #else
+         char *fcup_response_data = NULL;       
+-        fcup_response_data = plist_get_data_val(req_params_fcup_response_data_node, &fcup_response_data, &uint_val);
++        plist_get_data_val(req_params_fcup_response_data_node, &fcup_response_data, &uint_val);
+ #endif
+         fcup_response_datalen = (int) uint_val;
+         char *playlist = NULL;
+--- a/renderers/video_renderer.c
++++ b/renderers/video_renderer.c
+@@ -408,6 +408,9 @@
+                 }
+             }
+ 
++            if (getenv("CM101S_HISI_TEST") && i == type_264) {
++                g_string_assign(launch, "appsrc name=video_source ! queue ! h264parse config-interval=-1 ! video/x-h264,stream-format=byte-stream,alignment=au ! hisi264testsink");
++            }
+             logger_log(logger, LOGGER_DEBUG, "GStreamer video pipeline %d:\n\"%s\"", i + 1, launch->str);
+             renderer_type[i]->pipeline = gst_parse_launch(launch->str, &error);
+             if (error) {
+--- a/renderers/audio_renderer.c
++++ b/renderers/audio_renderer.c
+@@ -283,6 +283,10 @@
+ }
+ 
+ void  audio_renderer_start(unsigned char *ct) {
++    if (!renderer && getenv("CM101S_AUDIO_CLAIM") && system("/usr/local/lib/cm101s-airplay/audio-control") != 0) {
++        logger_log(logger, LOGGER_ERR, "CM101s could not claim audio output");
++        return;
++    }
+     int id = -1;
+     get_renderer_type(ct, &id);
+     if (id >= 0 && renderer) {

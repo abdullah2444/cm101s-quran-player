@@ -1,0 +1,12 @@
+[Unit]
+Description=Quran player (AUX output)
+After=sound.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/bin/quran-player.py
+Restart=always
+RestartSec=5
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target
