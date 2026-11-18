@@ -31,6 +31,13 @@ Turn an old **China Mobile CM101s-2** TV box (**HiSilicon Hi3798MV100**, ARMv7, 
 │   ├── prayer-location.json.example   # Prayer times coordinates/city override (/etc/prayer-location.json)
 │   ├── systemd/                       # systemd units + 60s boot logo handoff drop-in
 │   └── web/                           # PHP web panel pages (quran.php, videos.php, airplay.php, home.php)
+├── rust/                              # Rust rewrite of runtime services (cross-compiles to ARMv7 GLIBC 2.31)
+│   ├── Cargo.toml                     # Workspace (quran-player, hdmi-status, box-standby, audio-control)
+│   ├── README.md                      # Cross-compile & drop-in install instructions
+│   ├── quran-player/                  # Rust port of quran-player.py
+│   ├── hdmi-status/                   # Rust port of hdmi-status.py
+│   ├── box-standby/                   # Rust port of box-standby.py
+│   └── audio-control/                 # Rust port of audio-control helper
 └── linux-video/
     ├── hisdk-minimal/                 # Native build scripts, stubs, ABI header fixes, and vtest.c for libhimini.so
     ├── vplay/                         # Hardware-decoded H.264/H.265 + ALSA audio player (60fps rate fix + A/V sync)
@@ -90,6 +97,8 @@ systemctl enable --now quran-player hdmi-status
 ```
 
 > **Why the 60s boot delay drop-in?** The stock bootloader/HiNAS init redraws the splash logo during early boot and covers `/dev/fb0`. Waiting until `/proc/uptime >= 60s` keeps `hdmi-status` cleanly on top.
+>
+> **Native Rust binaries:** Ready-to-cross-compile Rust ports of `quran-player`, `hdmi-status`, `box-standby`, and `audio-control` live in [`rust/`](rust/README.md) (`cargo zigbuild --release --target armv7-unknown-linux-gnueabihf.2.31`) if you prefer standalone ARMv7 ELF binaries over Python.
 
 ### 5. Web Interface (Optional)
 
