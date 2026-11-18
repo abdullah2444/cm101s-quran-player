@@ -236,6 +236,12 @@ impl Shared {
             drop(guard);
             let _ = child.kill();
             let _ = child.wait();
+            for _ in 0..20 {
+                if pcm_is_closed() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
         }
     }
 
@@ -245,7 +251,9 @@ impl Shared {
         }
         let mut guard = self.mpg_stdin.lock().unwrap();
         if let Some(stdin) = guard.as_mut() {
-            let _ = writeln!(stdin, "{cmd}");
+            // mpg123 -R corrupts commands if the newline arrives in a separate write() syscall.
+            let line = format!("{cmd}\n");
+            let _ = stdin.write_all(line.as_bytes());
             let _ = stdin.flush();
         }
     }
@@ -529,7 +537,11 @@ fn spawn_mpg(shared: Arc<Shared>) {
 fn spawn_silence_keeper(shared: Arc<Shared>) {
     thread::spawn(move || loop {
         thread::sleep(Duration::from_millis(300));
-        let playing = shared.st.lock().unwrap().state == "playing";
+        let Ok(_vg) = shared.vlock.try_lock() else {
+            continue;
+        };
+        let st_guard = shared.st.lock().unwrap();
+        let playing = st_guard.state == "playing";
         let ap_claimed = shared.airplay.lock().unwrap().audio_claimed;
         let vid_busy = {
             let v = shared.video.lock().unwrap();
@@ -573,6 +585,7 @@ fn spawn_silence_keeper(shared: Arc<Shared>) {
                 *shared.silent.lock().unwrap() = Some(child);
             }
         }
+        drop(st_guard);
     });
 }
 

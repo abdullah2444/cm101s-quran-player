@@ -250,7 +250,8 @@ pub fn video_busy_locked(shared: &Shared) -> bool {
 pub fn video_send(shared: &Shared, cmd: &str) {
     let mut v = shared.video.lock().unwrap();
     if let Some(stdin) = v.stdin.as_mut() {
-        let _ = writeln!(stdin, "{cmd}");
+        let line = format!("{cmd}\n");
+        let _ = stdin.write_all(line.as_bytes());
         let _ = stdin.flush();
     }
 }
