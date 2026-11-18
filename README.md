@@ -9,7 +9,9 @@ Turn an old **China Mobile CM101s-2** TV box (**HiSilicon Hi3798MV100**, ARMv7, 
 - **Web remote control UI** (`quran.php`, `videos.php`, `airplay.php`, `home.php`)
 - **Hardware-accelerated H.264/H.265 video playback (`vplay`) & iPhone AirPlay mirroring (`uxplay` + GStreamer sink)** running directly on the HiSilicon video layer underneath the transparent `/dev/fb0` UI
 
-> **How Linux video & HDMI output was solved on this box:** See [`docs/LINUX_VIDEO_OUTPUT.md`](docs/LINUX_VIDEO_OUTPUT.md) for the complete write-up (framebuffer quirks, reconstructing `libhimini.so` when the kernel has no userspace libraries, fixing 25/60 fps A/V sync, and raw NV21 frame capture).
+> **Installing Linux first:** See [`docs/INSTALLING_LINUX.md`](docs/INSTALLING_LINUX.md) for flashing **HiNAS / Ubuntu 20.04** onto a stock Android CM101s-2 (UART pins, full eMMC backup, `mdmo1g` DDR bootloader note, `emmc.flash` layout, and MD5-verified flash).
+>
+> **How Linux video & HDMI output was solved:** See [`docs/LINUX_VIDEO_OUTPUT.md`](docs/LINUX_VIDEO_OUTPUT.md) for the complete write-up (framebuffer quirks, reconstructing `libhimini.so` when the kernel has no userspace libraries, fixing 25/60 fps A/V sync, and raw NV21 frame capture).
 
 ---
 
@@ -18,6 +20,7 @@ Turn an old **China Mobile CM101s-2** TV box (**HiSilicon Hi3798MV100**, ARMv7, 
 ```
 .
 ├── docs/
+│   ├── INSTALLING_LINUX.md            # Flashing HiNAS Ubuntu 20.04 onto stock Android CM101s-2
 │   └── LINUX_VIDEO_OUTPUT.md          # Complete Linux HDMI + HiSilicon HW decode write-up
 ├── quran-tv/
 │   ├── quran-player.py                # Audio daemon, IR remote handler, HTTP API (127.0.0.1:8790), video & AirPlay handoff
